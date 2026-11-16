@@ -4,7 +4,6 @@ import uuid
 import boto3
 import redis
 from flask import Flask, request, jsonify
-from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
 
@@ -13,7 +12,7 @@ r = redis.Redis(host=os.getenv("REDIS_HOST", "redis"), port=6379, decode_respons
 
 # S3 클라이언트 설정 (EC2 IAM 역할 자동 인식)
 S3_BUCKET = os.getenv("S3_BUCKET_NAME", "kbo-ticket-2224024")
-AWS_REGION = os.getenv("AWS_REGION", "ap-northeast-2")
+AWS_REGION = os.getenv("AWS_REGION", "ap-southeast-2")
 s3 = boto3.client("s3", region_name=AWS_REGION)
 
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "webp"}
@@ -23,7 +22,7 @@ def allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
-# 0. 헬스 체크 (슬라이드 2페이지 로컬 점검 필수 항목)
+# 0. 헬스 체크
 @app.route("/api/health", methods=["GET"])
 def health_check():
     try:
@@ -33,7 +32,7 @@ def health_check():
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
-# 1. 경기/좌석 구역 등록 및 조회 (S3 시야 사진 업로드 연동)
+# 1. 경기/좌석 구역 조회, 등록, 삭제 (S3 연동)
 @app.route("/api/sections", methods=["GET"])
 def get_sections():
     section_keys = sorted(r.keys("section:*"))
@@ -56,31 +55,34 @@ def create_section():
     seats_raw = request.form.get("seats", "").strip()
     file = request.files.get("image")
 
-    # 예외/경계 검증
+    # 경계 및 예외 검증
     if not title or not seats_raw:
         return jsonify({"error": "경기/구역명과 예매 가능 좌석 번호를 모두 입력하세요."}), 400
+    if len(title) > 50:
+        return jsonify({"error": "경기/구역명은 50자 이하로 입력하세요."}), 400
     if not file or file.filename == "":
         return jsonify({"error": "좌석 시야 이미지 파일을 첨부해야 합니다."}), 400
     if not allowed_file(file.filename):
-        return jsonify({"error": "허용되지 않는 파일 형식입니다. (png, jpg, jpeg, webp만 가능)"}), 400
+        return jsonify({"error": "허용되지 않는 파일 형식입니다. (png, jpg, jpeg, gif, webp만 가능)"}), 400
 
-    seats = [s.strip() for s in seats_raw.split(",") if s.strip()]
+    # 중복 좌석 제거 및 순서 유지
+    seats = list(dict.fromkeys([s.strip() for s in seats_raw.split(",") if s.strip()]))
     if not seats:
         return jsonify({"error": "유효한 좌석 번호를 1개 이상 입력하세요."}), 400
 
-    # S3 업로드
-    ext = secure_filename(file.filename).rsplit(".", 1)[1].lower()
+    # 한글 파일명 안전 처리: 원본 파일명에서 확장자 직접 추출
+    ext = file.filename.rsplit(".", 1)[1].lower()
     s3_key = f"views/{uuid.uuid4().hex}.{ext}"
     try:
         s3.upload_fileobj(
             file,
             S3_BUCKET,
             s3_key,
-            ExtraArgs={"ContentType": file.content_type},
+            ExtraArgs={"ContentType": file.content_type or "image/jpeg"},
         )
         image_url = f"https://{S3_BUCKET}.s3.{AWS_REGION}.amazonaws.com/{s3_key}"
     except Exception as e:
-        return jsonify({"error": f"S3 업로드 실패 (EC2 IAM 역할 연결 확인 필요): {str(e)}"}), 500
+        return jsonify({"error": f"S3 업로드 실패: {str(e)}"}), 500
 
     section_id = uuid.uuid4().hex[:8]
     section_data = {
@@ -94,6 +96,28 @@ def create_section():
     return jsonify({"message": "경기 및 좌석 구역 등록 완료!", "section": section_data}), 201
 
 
+@app.route("/api/sections/<section_id>", methods=["DELETE"])
+def delete_section(section_id):
+    section_raw = r.get(f"section:{section_id}")
+    if not section_raw:
+        return jsonify({"error": "존재하지 않는 경기/구역입니다."}), 404
+
+    section_data = json.loads(section_raw)
+    # S3 객체 삭제
+    try:
+        if section_data.get("s3_key"):
+            s3.delete_object(Bucket=S3_BUCKET, Key=section_data["s3_key"])
+    except Exception:
+        pass
+
+    # Redis 구역 및 해당 구역 예매 데이터 삭제
+    r.delete(f"section:{section_id}")
+    for seat in section_data.get("seats", []):
+        r.delete(f"ticket:{section_id}:{seat}")
+
+    return jsonify({"message": "구역 및 S3 이미지가 삭제되었습니다."}), 200
+
+
 # 2. 실시간 선착순 좌석 예매 (Redis SET NX 동시성 제어)
 @app.route("/api/reserve", methods=["POST"])
 def reserve_seat():
@@ -103,9 +127,10 @@ def reserve_seat():
     fan_id = data.get("fan_id", "").strip()
     fan_name = data.get("fan_name", "").strip()
 
-    # 예외/경계 검증
     if not all([section_id, seat, fan_id, fan_name]):
         return jsonify({"error": "팬 ID(연락처), 이름, 구역, 좌석을 모두 입력하세요."}), 400
+    if len(fan_id) > 30 or len(fan_name) > 20:
+        return jsonify({"error": "팬 ID는 30자, 이름은 20자 이하로 입력하세요."}), 400
 
     section_raw = r.get(f"section:{section_id}")
     if not section_raw:
@@ -124,7 +149,6 @@ def reserve_seat():
         "fan_name": fan_name,
     })
 
-    # 원자적 선착순 처리 (nx=True: 키가 없을 때만 성공)
     is_success = r.set(lock_key, ticket_payload, nx=True)
     if not is_success:
         return jsonify({"error": "이미 선착순 매진된 좌석입니다."}), 409

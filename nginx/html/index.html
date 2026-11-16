@@ -2,85 +2,544 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title>KBO 프로야구 인기 좌석 실시간 선착순 예매</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>KBO TICKET | 프로야구 인기 좌석 실시간 선착순 예매</title>
+  <!-- 가장 널리 쓰이는 모던 한글 웹폰트 Pretendard CDN -->
+  <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
   <style>
-    body { font-family: sans-serif; max-width: 900px; margin: 30px auto; padding: 0 16px; background: #f3f4f6; }
-    h1 { color: #111827; }
-    .card { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
-    input, button { padding: 8px 12px; margin: 4px 0; border-radius: 4px; border: 1px solid #d1d5db; }
-    button { background: #c8102e; color: #fff; border: none; cursor: pointer; font-weight: bold; }
-    button:disabled { background: #9ca3af; cursor: not-allowed; }
-    button.secondary { background: #1f2937; }
-    .section-item { border: 1px solid #e5e7eb; padding: 14px; border-radius: 6px; margin-top: 12px; display: flex; gap: 16px; }
-    .section-item img { width: 160px; height: 110px; object-fit: cover; border-radius: 4px; background: #eee; }
-    .seat-btn { margin-right: 6px; margin-top: 6px; }
-    .msg { padding: 10px; border-radius: 4px; margin-top: 10px; display: none; font-weight: bold; }
-    .msg.ok { background: #dcfce7; color: #166534; display: block; }
-    .msg.err { background: #fee2e2; color: #991b1b; display: block; }
+    :root {
+      --primary: #0f2544;
+      --accent: #d91e36;
+      --accent-hover: #b5152a;
+      --bg: #f1f5f9;
+      --card: #ffffff;
+      --text: #1e293b;
+      --muted: #64748b;
+      --border: #e2e8f0;
+      --success: #15803d;
+      --success-bg: #dcfce7;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body, input, button {
+      font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto, "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", sans-serif;
+    }
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* 상단 네비게이션 바 */
+    header {
+      background: linear-gradient(135deg, #09182e 0%, #163663 100%);
+      color: #fff;
+      padding: 20px 0;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+    .header-inner {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 0 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .brand-badge {
+      background: var(--accent);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 800;
+      padding: 4px 10px;
+      border-radius: 20px;
+      letter-spacing: 0.5px;
+    }
+    .brand h1 {
+      font-size: 22px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+    }
+    .status-pill {
+      background: rgba(255, 255, 255, 0.12);
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .dot {
+      width: 8px;
+      height: 8px;
+      background: #4ade80;
+      border-radius: 50%;
+      box-shadow: 0 0 8px #4ade80;
+    }
+
+    /* 토스트 알림 배너 */
+    #alertBox {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 1000;
+      min-width: 320px;
+      max-width: 90%;
+      padding: 14px 22px;
+      border-radius: 10px;
+      font-weight: 700;
+      font-size: 14px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+      display: none;
+      text-align: center;
+    }
+    #alertBox.ok {
+      display: block;
+      background: #064e3b;
+      color: #ecfdf5;
+      border-left: 5px solid #10b981;
+    }
+    #alertBox.err {
+      display: block;
+      background: #7f1d1d;
+      color: #fef2f2;
+      border-left: 5px solid #ef4444;
+    }
+
+    /* 메인 레이아웃 */
+    .container {
+      max-width: 1120px;
+      margin: 28px auto;
+      padding: 0 20px;
+      display: grid;
+      grid-template-columns: 1fr 340px;
+      gap: 24px;
+      align-items: start;
+    }
+    @media (max-width: 860px) {
+      .container { grid-template-columns: 1fr; }
+    }
+
+    .card {
+      background: var(--card);
+      border-radius: 12px;
+      padding: 22px;
+      border: 1px solid var(--border);
+      box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+      margin-bottom: 22px;
+    }
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 2px solid #f1f5f9;
+    }
+    .card-header h2 {
+      font-size: 17px;
+      font-weight: 800;
+      color: var(--primary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      letter-spacing: -0.3px;
+    }
+    .step-num {
+      background: var(--primary);
+      color: #fff;
+      width: 24px;
+      height: 24px;
+      border-radius: 6px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    /* 입력 폼 스타일 */
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    @media (max-width: 600px) {
+      .form-grid { grid-template-columns: 1fr; }
+    }
+    .input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      margin-bottom: 10px;
+    }
+    .input-group label {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--muted);
+    }
+    input[type="text"], input[type="file"] {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      font-size: 14px;
+      transition: border-color 0.2s;
+      background: #f8fafc;
+    }
+    input[type="text"]:focus {
+      outline: none;
+      border-color: var(--primary);
+      background: #fff;
+    }
+
+    /* 버튼 스타일 */
+    .btn {
+      padding: 10px 16px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .btn-primary {
+      background: var(--primary);
+      color: #fff;
+      width: 100%;
+    }
+    .btn-primary:hover { background: #1e3a6e; }
+    .btn-accent {
+      background: var(--accent);
+      color: #fff;
+    }
+    .btn-accent:hover { background: var(--accent-hover); }
+    .btn-danger {
+      background: #fee2e2;
+      color: #b91c1c;
+      padding: 6px 12px;
+      font-size: 12px;
+    }
+    .btn-danger:hover { background: #fecaca; }
+    .btn-ghost {
+      background: #f1f5f9;
+      color: #64748b;
+      padding: 4px 9px;
+      font-size: 11px;
+      border-radius: 6px;
+    }
+    .btn-ghost:hover {
+      background: #fee2e2;
+      color: #b91c1c;
+    }
+
+    /* 예매자 정보 바 */
+    .user-bar {
+      background: #f8fafc;
+      border: 1.5px solid #cbd5e1;
+      border-radius: 10px;
+      padding: 14px;
+      margin-bottom: 18px;
+    }
+    .user-bar-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--primary);
+      margin-bottom: 8px;
+    }
+
+    /* 경기/구역 카드 */
+    .section-item {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+      margin-bottom: 14px;
+      display: flex;
+      gap: 18px;
+      background: #fff;
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+    .section-item:hover {
+      box-shadow: 0 6px 16px rgba(15, 23, 42, 0.08);
+    }
+    @media (max-width: 600px) {
+      .section-item { flex-direction: column; }
+    }
+    .section-thumb {
+      width: 190px;
+      height: 135px;
+      border-radius: 8px;
+      overflow: hidden;
+      flex-shrink: 0;
+      position: relative;
+      background: #e2e8f0;
+    }
+    .section-thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .s3-tag {
+      position: absolute;
+      bottom: 6px;
+      left: 6px;
+      background: rgba(15, 37, 68, 0.85);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 4px;
+      text-decoration: none;
+    }
+    .section-body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .section-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .section-title {
+      font-size: 17px;
+      font-weight: 800;
+      color: #0f172a;
+      letter-spacing: -0.3px;
+    }
+    .section-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .remain-badge {
+      font-size: 12px;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: 20px;
+      background: var(--success-bg);
+      color: var(--success);
+      white-space: nowrap;
+    }
+    .remain-badge.soldout {
+      background: #f1f5f9;
+      color: #64748b;
+    }
+
+    /* 좌석 버튼 그리드 */
+    .seat-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .seat-btn {
+      padding: 8px 14px;
+      border-radius: 7px;
+      font-size: 13px;
+      font-weight: 700;
+      border: 1.5px solid var(--accent);
+      background: #fff;
+      color: var(--accent);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .seat-btn:hover:not(:disabled) {
+      background: var(--accent);
+      color: #fff;
+    }
+    .seat-btn:disabled {
+      border-color: #cbd5e1;
+      background: #f1f5f9;
+      color: #94a3b8;
+      cursor: not-allowed;
+      text-decoration: line-through;
+    }
+
+    /* 내 티켓 카드 */
+    .ticket-card {
+      background: #f8fafc;
+      border: 1px solid #cbd5e1;
+      border-left: 4px solid var(--primary);
+      border-radius: 8px;
+      padding: 12px;
+      margin-top: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+    .ticket-info strong {
+      display: block;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--primary);
+    }
+    .ticket-info span {
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .empty-state {
+      text-align: center;
+      padding: 32px 16px;
+      color: var(--muted);
+      font-size: 14px;
+      background: #f8fafc;
+      border-radius: 8px;
+      border: 1px dashed #cbd5e1;
+    }
   </style>
 </head>
 <body>
-  <h1>⚾ KBO 프로야구 인기 좌석 실시간 선착순 예매</h1>
-  <div id="alertBox" class="msg"></div>
 
-  <!-- 기능 1: 경기 및 좌석 구역 등록 (S3 시야 사진 업로드) -->
-  <div class="card">
-    <h2>1. 경기 및 좌석 구역 등록 (AWS S3 시야 사진 저장)</h2>
-    <input type="text" id="sectionTitle" placeholder="예: 잠실 LG vs KT (1루 블루석)" style="width: 240px;" />
-    <input type="text" id="sectionSeats" placeholder="좌석 번호 (쉼표 구분: A1, A2, A3)" style="width: 240px;" />
-    <input type="file" id="sectionImage" accept="image/*" />
-    <button onclick="createSection()">구역 등록</button>
-  </div>
-
-  <!-- 기능 2: 실시간 선착순 좌석 예매 -->
-  <div class="card">
-    <h2>2. 실시간 선착순 좌석 예매</h2>
-    <div>
-      <input type="text" id="fanId" placeholder="팬 ID / 연락처 (예: 01012345678)" />
-      <input type="text" id="fanName" placeholder="예매자 이름 (예: 김형일)" />
+  <header>
+    <div class="header-inner">
+      <div class="brand">
+        <span class="brand-badge">KBO LIVE TICKET</span>
+        <h1>⚾ 프로야구 인기 좌석 실시간 선착순 예매</h1>
+      </div>
+      <div class="status-pill">
+        <span class="dot"></span>
+        <span>AWS EC2 + S3 + Redis 실시간 연동 중</span>
+      </div>
     </div>
-    <div id="sectionList">불러오는 중...</div>
-  </div>
+  </header>
 
-  <!-- 기능 3: 내 티켓 조회 및 취소 -->
-  <div class="card">
-    <h2>3. 내 예매 내역 조회 및 취소</h2>
-    <input type="text" id="searchFanId" placeholder="조회할 팬 ID(연락처) 입력" />
-    <button class="secondary" onclick="searchTickets()">내 티켓 조회</button>
-    <div id="myTicketList" style="margin-top: 10px;"></div>
-  </div>
+  <div id="alertBox"></div>
+
+  <main class="container">
+    <!-- 좌측 메인 영역: 예매 및 구역 등록 -->
+    <div>
+      <!-- 기능 2: 실시간 선착순 좌석 예매 -->
+      <section class="card">
+        <div class="card-header">
+          <h2><span class="step-num">1</span> 실시간 선착순 좌석 예매</h2>
+          <span style="font-size: 12px; color: var(--muted);">좌석 클릭 시 즉시 선착순 확정</span>
+        </div>
+
+        <div class="user-bar">
+          <div class="user-bar-title">👤 예매자 정보 입력 (좌석 선택 전 먼저 입력해주세요)</div>
+          <div class="form-grid" style="margin-bottom: 0;">
+            <input type="text" id="fanId" placeholder="팬 ID 또는 연락처 (예: 01012345678)" />
+            <input type="text" id="fanName" placeholder="예매자 이름 (예: 김형일)" />
+          </div>
+        </div>
+
+        <div id="sectionList">불러오는 중...</div>
+      </section>
+
+      <!-- 기능 1: 경기 및 좌석 구역 등록 (S3 업로드) -->
+      <section class="card">
+        <div class="card-header">
+          <h2><span class="step-num">2</span> 경기 및 좌석 구역 등록 (AWS S3 시야 사진 업로드)</h2>
+        </div>
+        <div class="form-grid">
+          <div class="input-group">
+            <label>경기 및 좌석 구역명</label>
+            <input type="text" id="sectionTitle" placeholder="예: 잠실 LG vs KT (1루 블루석)" />
+          </div>
+          <div class="input-group">
+            <label>오픈 좌석 번호 (쉼표로 구분)</label>
+            <input type="text" id="sectionSeats" placeholder="예: A1, A2, A3, A4" />
+          </div>
+        </div>
+        <div class="input-group">
+          <label>좌석 시야 사진 (AWS S3 버킷 저장)</label>
+          <input type="file" id="sectionImage" accept="image/*" />
+        </div>
+        <button class="btn btn-primary" onclick="createSection()">+ 새 경기/구역 오픈하기</button>
+      </section>
+    </div>
+
+    <!-- 우측 사이드 영역: 내 예매 내역 조회 및 취소 -->
+    <aside>
+      <section class="card" style="position: sticky; top: 20px;">
+        <div class="card-header">
+          <h2><span class="step-num">3</span> 내 티켓 조회 / 취소</h2>
+        </div>
+        <div class="input-group">
+          <label>예매 시 입력한 팬 ID (연락처)</label>
+          <input type="text" id="searchFanId" placeholder="예: 01012345678" />
+        </div>
+        <button class="btn btn-accent" style="width: 100%;" onclick="searchTickets()">내 예매 내역 조회</button>
+        <div id="myTicketList" style="margin-top: 14px;"></div>
+      </section>
+    </aside>
+  </main>
 
   <script>
+    let alertTimer = null;
+
     function showAlert(text, isError = false) {
       const box = document.getElementById("alertBox");
-      box.textContent = text;
-      box.className = "msg " + (isError ? "err" : "ok");
+      box.textContent = (isError ? "⚠️ " : "✅ ") + text;
+      box.className = isError ? "err" : "ok";
+      if (alertTimer) clearTimeout(alertTimer);
+      alertTimer = setTimeout(() => {
+        box.className = "";
+      }, 3500);
     }
 
     async function loadSections() {
       const res = await fetch("/api/sections");
       const sections = await res.json();
       const container = document.getElementById("sectionList");
+
       if (!sections.length) {
-        container.innerHTML = "<p>등록된 경기/구역이 없습니다. 위에서 먼저 등록해주세요.</p>";
+        container.innerHTML = `
+          <div class="empty-state">
+            현재 오픈된 경기/좌석 구역이 없습니다.<br/>
+            아래 <strong>[2. 경기 및 좌석 구역 등록]</strong>에서 시야 사진과 함께 좌석을 오픈해보세요!
+          </div>`;
         return;
       }
-      container.innerHTML = sections.map(sec => `
-        <div class="section-item">
-          <img src="${sec.image_url}" alt="${sec.title}" />
-          <div>
-            <strong>${sec.title}</strong> <small>(S3 경로: <a href="${sec.image_url}" target="_blank">시야 원본 보기</a>)</small><br/>
-            <div>
-              ${sec.seats.map(seat => {
-                const booked = sec.seats_status[seat];
-                return booked
-                  ? `<button class="seat-btn" disabled>${seat}석 (매진: ${booked.fan_name})</button>`
-                  : `<button class="seat-btn" onclick="reserveSeat('${sec.id}', '${seat}')">${seat}석 예매하기</button>`;
-              }).join("")}
+
+      container.innerHTML = sections.map(sec => {
+        const totalSeats = sec.seats.length;
+        const bookedCount = sec.seats.filter(s => sec.seats_status[s]).length;
+        const remainCount = totalSeats - bookedCount;
+
+        return `
+          <div class="section-item">
+            <div class="section-thumb">
+              <img src="${sec.image_url}" alt="${sec.title}" />
+              <a class="s3-tag" href="${sec.image_url}" target="_blank">S3 시야 원본 ↗</a>
+            </div>
+            <div class="section-body">
+              <div class="section-top">
+                <div class="section-title">${sec.title}</div>
+                <div class="section-actions">
+                  <span class="remain-badge ${remainCount === 0 ? 'soldout' : ''}">
+                    ${remainCount === 0 ? '전석 매진' : `잔여 ${remainCount} / ${totalSeats}석`}
+                  </span>
+                  <button class="btn btn-ghost" onclick="deleteSection('${sec.id}')" title="구역 및 S3 이미지 삭제">삭제</button>
+                </div>
+              </div>
+              <div class="seat-grid">
+                ${sec.seats.map(seat => {
+                  const booked = sec.seats_status[seat];
+                  return booked
+                    ? `<button class="seat-btn" disabled title="예매자: ${booked.fan_name}">${seat}석 (매진)</button>`
+                    : `<button class="seat-btn" onclick="reserveSeat('${sec.id}', '${seat}')">${seat}석 예매</button>`;
+                }).join("")}
+              </div>
             </div>
           </div>
-        </div>
-      `).join("");
+        `;
+      }).join("");
     }
 
     async function createSection() {
@@ -93,6 +552,7 @@
       const res = await fetch("/api/sections", { method: "POST", body: formData });
       const data = await res.json();
       if (!res.ok) return showAlert(data.error, true);
+
       showAlert(data.message);
       document.getElementById("sectionTitle").value = "";
       document.getElementById("sectionSeats").value = "";
@@ -100,9 +560,21 @@
       loadSections();
     }
 
+    async function deleteSection(sectionId) {
+      if (!confirm("이 경기 구역과 S3 시야 이미지를 삭제할까요?")) return;
+      const res = await fetch(`/api/sections/${sectionId}`, { method: "DELETE" });
+      const data = await res.json();
+      if (!res.ok) return showAlert(data.error, true);
+
+      showAlert(data.message);
+      loadSections();
+      searchTickets(true);
+    }
+
     async function reserveSeat(sectionId, seat) {
       const fanId = document.getElementById("fanId").value;
       const fanName = document.getElementById("fanName").value;
+
       const res = await fetch("/api/reserve", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -110,37 +582,47 @@
       });
       const data = await res.json();
       if (!res.ok) return showAlert(data.error, true);
+
       showAlert(data.message);
+      document.getElementById("searchFanId").value = fanId;
       loadSections();
+      searchTickets(true);
     }
 
-    async function searchTickets() {
+    async function searchTickets(silent = false) {
       const fanId = document.getElementById("searchFanId").value;
       const res = await fetch(`/api/my-tickets?fan_id=${encodeURIComponent(fanId)}`);
       const data = await res.json();
       const list = document.getElementById("myTicketList");
+
       if (!res.ok) {
         list.innerHTML = "";
-        return showAlert(data.error, true);
+        if (!silent) showAlert(data.error, true);
+        return;
       }
+
       list.innerHTML = data.map(t => `
-        <div style="margin-top: 6px;">
-          ⚾ <strong>${t.section_title}</strong> - ${t.seat}석 (${t.fan_name} / ${t.fan_id})
-          <button class="secondary" onclick="cancelTicket('${t.section_id}', '${t.seat}', '${t.fan_id}')">예매 취소</button>
+        <div class="ticket-card">
+          <div class="ticket-info">
+            <strong>${t.section_title} · ${t.seat}석</strong>
+            <span>예매자: ${t.fan_name} (${t.fan_id})</span>
+          </div>
+          <button class="btn btn-danger" onclick="cancelTicket('${t.section_id}', '${t.seat}', '${t.fan_id}')">취소</button>
         </div>
       `).join("");
     }
 
-    async function cancelTicket(sectionId, seat, fanId) {
+    async function cancelTicket(sectionId, slot, fanId) {
       const res = await fetch("/api/cancel", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ section_id: sectionId, seat, fan_id: fanId })
+        body: JSON.stringify({ section_id: sectionId, seat: slot, fan_id: fanId })
       });
       const data = await res.json();
       if (!res.ok) return showAlert(data.error, true);
+
       showAlert(data.message);
-      searchTickets();
+      searchTickets(true);
       loadSections();
     }
 
