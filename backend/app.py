@@ -1,10 +1,12 @@
 import os
 import json
 import uuid
+import secrets
 from datetime import date
 import boto3
 import redis
 from flask import Flask, request, jsonify
+from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
 
@@ -87,8 +89,16 @@ def get_sections():
         seats_status = {}
         for seat in data["seats"]:
             lock_key = f"ticket:{data['id']}:{seat}"
-            booked_info = r.get(lock_key)
-            seats_status[seat] = json.loads(booked_info) if booked_info else None
+            booked_raw = r.get(lock_key)
+            if booked_raw:
+                booked_info = json.loads(booked_raw)
+                # 민감한 비밀번호 해시는 외부 노출 제외
+                seats_status[seat] = {
+                    "fan_name": booked_info.get("fan_name"),
+                    "booking_code": booked_info.get("booking_code"),
+                }
+            else:
+                seats_status[seat] = None
         data["seats_status"] = seats_status
         sections.append(data)
     return jsonify(sections), 200
@@ -172,7 +182,7 @@ def delete_section(section_id):
     return jsonify({"message": "경기 구역이 삭제되었습니다."}), 200
 
 
-# 2-A. 단건 선착순 좌석 예매
+# 2-A. 단건 선착순 좌석 예매 (예매번호 + 4자리 비밀번호 자동 발급)
 @app.route("/api/reserve", methods=["POST"])
 def reserve_seat():
     data = request.get_json() or {}
@@ -195,8 +205,14 @@ def reserve_seat():
         return jsonify({"error": "해당 구역에 존재하지 않는 좌석 번호입니다."}), 400
 
     price = section_data.get("price", 0)
+    booking_code = f"KBO-{uuid.uuid4().hex[:6].upper()}"
+    pin_code = f"{secrets.randbelow(9000) + 1000}"  # 1000~9999 난수 4자리
+    pin_hash = generate_password_hash(pin_code)
+
     lock_key = f"ticket:{section_id}:{seat}"
     ticket_payload = json.dumps({
+        "booking_code": booking_code,
+        "pin_hash": pin_hash,
         "section_id": section_id,
         "section_title": section_data["title"],
         "seat": seat,
@@ -208,10 +224,15 @@ def reserve_seat():
     if not r.set(lock_key, ticket_payload, nx=True):
         return jsonify({"error": "이미 선착순 매진된 좌석입니다."}), 409
 
-    return jsonify({"message": f"[{section_data['title']} / {seat}석] 선착순 예매 확정! (결제금액: {price:,}원)"}), 201
+    return jsonify({
+        "message": f"[{section_data['title']} / {seat}석] 예매 확정!",
+        "booking_code": booking_code,
+        "pin_code": pin_code,
+        "total_amount": price,
+    }), 201
 
 
-# 2-B. 다중 좌석 일괄 선착순 예매
+# 2-B. 다중 좌석 일괄 선착순 예매 (예매번호 + 4자리 비밀번호 자동 발급)
 @app.route("/api/reserve-batch", methods=["POST"])
 def reserve_batch():
     data = request.get_json() or {}
@@ -225,6 +246,10 @@ def reserve_batch():
         return jsonify({"error": "팬 ID는 30자, 이름은 20자 이하로 입력하세요."}), 400
     if not items or not isinstance(items, list):
         return jsonify({"error": "예매할 좌석을 1개 이상 선택하세요."}), 400
+
+    booking_code = f"KBO-{uuid.uuid4().hex[:6].upper()}"
+    pin_code = f"{secrets.randbelow(9000) + 1000}"  # 일괄 예매 건에 공통 4자리 비밀번호 발급
+    pin_hash = generate_password_hash(pin_code)
 
     succeeded = []
     failed = []
@@ -246,6 +271,8 @@ def reserve_batch():
         price = section_data.get("price", 0)
         lock_key = f"ticket:{section_id}:{seat}"
         ticket_payload = json.dumps({
+            "booking_code": booking_code,
+            "pin_hash": pin_hash,
             "section_id": section_id,
             "section_title": section_data["title"],
             "seat": seat,
@@ -263,30 +290,56 @@ def reserve_batch():
     if not succeeded:
         return jsonify({"error": f"선택한 좌석이 모두 매진되었습니다. ({', '.join(failed)})"}), 409
 
-    msg = f"총 {len(succeeded)}석 예매 확정! (총 결제금액: {total_amount:,}원)"
+    msg = f"총 {len(succeeded)}석 예매 확정! (결제금액: {total_amount:,}원)"
     if failed:
         msg += f" / 일부 매진 제외: {', '.join(failed)}"
 
-    return jsonify({"message": msg, "succeeded": succeeded, "failed": failed, "total_amount": total_amount}), 201
+    return jsonify({
+        "message": msg,
+        "booking_code": booking_code,
+        "pin_code": pin_code,
+        "succeeded": succeeded,
+        "failed": failed,
+        "total_amount": total_amount,
+    }), 201
 
 
-# 3. 내 티켓 조회 및 예매 취소
+# 3. 내 티켓 조회 및 예매 취소 (연락처 + 4자리 예매 비밀번호 필수 검증)
 @app.route("/api/my-tickets", methods=["GET"])
 def get_my_tickets():
     fan_id = request.args.get("fan_id", "").strip()
-    if not fan_id:
-        return jsonify({"error": "조회할 팬 ID(연락처)를 입력하세요."}), 400
+    pin_code = request.args.get("pin_code", "").strip()
 
-    results = []
+    if not fan_id or not pin_code:
+        return jsonify({"error": "연락처(팬 ID)와 발급받은 4자리 예매 비밀번호를 모두 입력하세요."}), 400
+
+    fan_tickets = []
     for key in r.keys("ticket:*"):
         info = json.loads(r.get(key))
         if info["fan_id"] == fan_id:
-            results.append(info)
+            fan_tickets.append(info)
 
-    if not results:
-        return jsonify({"error": "해당 ID로 예매된 티켓 내역이 없습니다."}), 404
+    if not fan_tickets:
+        return jsonify({"error": "해당 연락처로 예매된 티켓 내역이 없습니다."}), 404
 
-    return jsonify(results), 200
+    # 비밀번호 해시가 일치하는 티켓만 필터링
+    verified_tickets = []
+    for t in fan_tickets:
+        if t.get("pin_hash") and check_password_hash(t["pin_hash"], pin_code):
+            verified_tickets.append({
+                "booking_code": t.get("booking_code", "-"),
+                "section_id": t["section_id"],
+                "section_title": t["section_title"],
+                "seat": t["seat"],
+                "price": t.get("price", 0),
+                "fan_id": t["fan_id"],
+                "fan_name": t["fan_name"],
+            })
+
+    if not verified_tickets:
+        return jsonify({"error": "예매 비밀번호(4자리)가 일치하지 않습니다. 발급받은 번호를 확인하세요."}), 401
+
+    return jsonify(verified_tickets), 200
 
 
 @app.route("/api/cancel", methods=["POST"])
@@ -295,9 +348,10 @@ def cancel_ticket():
     section_id = data.get("section_id", "").strip()
     seat = data.get("seat", "").strip()
     fan_id = data.get("fan_id", "").strip()
+    pin_code = data.get("pin_code", "").strip()
 
-    if not all([section_id, seat, fan_id]):
-        return jsonify({"error": "취소할 티켓 정보와 팬 ID를 입력하세요."}), 400
+    if not all([section_id, seat, fan_id, pin_code]):
+        return jsonify({"error": "취소할 티켓 정보, 연락처, 예매 비밀번호를 모두 입력하세요."}), 400
 
     lock_key = f"ticket:{section_id}:{seat}"
     booked_raw = r.get(lock_key)
@@ -306,10 +360,13 @@ def cancel_ticket():
 
     booked_info = json.loads(booked_raw)
     if booked_info["fan_id"] != fan_id:
-        return jsonify({"error": "본인의 팬 ID와 일치하지 않아 취소할 수 없습니다."}), 403
+        return jsonify({"error": "본인의 연락처와 일치하지 않아 취소할 수 없습니다."}), 403
+
+    if not booked_info.get("pin_hash") or not check_password_hash(booked_info["pin_hash"], pin_code):
+        return jsonify({"error": "예매 비밀번호(4자리)가 일치하지 않아 취소할 수 없습니다."}), 401
 
     r.delete(lock_key)
-    return jsonify({"message": "티켓 예매가 정상적으로 취소되었습니다."}), 200
+    return jsonify({"message": "티켓 예매가 안전하게 취소되었습니다."}), 200
 
 
 if __name__ == "__main__":

@@ -12,7 +12,6 @@
       --accent-hover: #b5152a;
       --selected: #2563eb;
       --selected-bg: #eff6ff;
-      --field-green: #166534;
       --bg: #f1f5f9;
       --card: #ffffff;
       --text: #1e293b;
@@ -98,12 +97,33 @@
       border-left: 5px solid #ef4444;
     }
 
+    /* 메인 경기 필터 배너 */
+    .filter-banner {
+      max-width: 1160px;
+      margin: 22px auto 0;
+      padding: 0 20px;
+    }
+    .filter-card {
+      background: #fff;
+      border: 1.5px solid #cbd5e1;
+      border-radius: 12px;
+      padding: 16px 20px;
+      display: grid;
+      grid-template-columns: 1fr 1.2fr auto;
+      gap: 14px;
+      align-items: end;
+      box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+    }
+    @media (max-width: 720px) {
+      .filter-card { grid-template-columns: 1fr; }
+    }
+
     .container {
       max-width: 1160px;
-      margin: 28px auto;
+      margin: 20px auto 40px;
       padding: 0 20px;
       display: grid;
-      grid-template-columns: 1fr 350px;
+      grid-template-columns: 1fr 360px;
       gap: 24px;
       align-items: start;
     }
@@ -175,7 +195,7 @@
       font-weight: 700;
       color: var(--muted);
     }
-    input[type="text"], input[type="number"], input[type="date"], input[type="file"], select {
+    input[type="text"], input[type="password"], input[type="number"], input[type="date"], input[type="file"], select {
       width: 100%;
       padding: 10px 12px;
       border: 1.5px solid var(--border);
@@ -189,30 +209,6 @@
       outline: none;
       border-color: var(--primary);
       background: #fff;
-    }
-
-    .preset-chips {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-      margin-top: 6px;
-    }
-    .preset-chip {
-      background: #eef2ff;
-      color: #1e40af;
-      border: 1px solid #c7d2fe;
-      padding: 6px 11px;
-      border-radius: 6px;
-      font-size: 12px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.15s;
-    }
-    .preset-chip:hover { background: #dbeafe; }
-    .preset-chip.active {
-      background: var(--primary);
-      color: #fff;
-      border-color: var(--primary);
     }
 
     .btn {
@@ -235,6 +231,13 @@
       color: #fff;
     }
     .btn-accent:hover { background: var(--accent-hover); }
+    .btn-outline {
+      background: #fff;
+      color: var(--primary);
+      border: 1.5px solid #cbd5e1;
+      padding: 10px 14px;
+    }
+    .btn-outline:hover { background: #f1f5f9; }
     .btn-batch {
       background: var(--selected);
       color: #fff;
@@ -282,7 +285,44 @@
       margin-bottom: 8px;
     }
 
-    /* 야구장 좌석 배치도(스타디움 맵) 스타일 */
+    /* 발급된 예매번호 & 4자리 비밀번호 영수증 배너 */
+    .issued-pin-box {
+      display: none;
+      background: #fefce8;
+      border: 2px solid #facc15;
+      border-radius: 10px;
+      padding: 16px;
+      margin-top: 14px;
+    }
+    .issued-pin-box.show { display: block; }
+    .issued-pin-title {
+      font-size: 14px;
+      font-weight: 800;
+      color: #854d0e;
+      margin-bottom: 6px;
+    }
+    .issued-pin-grid {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin: 8px 0;
+    }
+    .pin-chip {
+      background: #fff;
+      border: 1px solid #fde047;
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      color: #713f12;
+    }
+    .pin-chip strong {
+      font-size: 17px;
+      color: var(--accent);
+      margin-left: 6px;
+      letter-spacing: 1px;
+    }
+
+    /* 야구장 좌석 배치도 스타일 */
     .section-item {
       border: 1px solid var(--border);
       border-radius: 12px;
@@ -374,7 +414,6 @@
       color: #64748b;
     }
 
-    /* 스타디움 미니 좌석 맵 영역 */
     .stadium-map-box {
       background: #f8fafc;
       border: 1.5px solid #cbd5e1;
@@ -475,7 +514,6 @@
       text-decoration: line-through;
     }
 
-    /* 선택된 좌석 요약 및 총 결제 금액 바 */
     .selection-summary {
       background: var(--selected-bg);
       border: 1.5px solid #bfdbfe;
@@ -538,7 +576,6 @@
       letter-spacing: -0.5px;
     }
 
-    /* 내 티켓 카드 */
     .ticket-card {
       background: #f8fafc;
       border: 1px solid #cbd5e1;
@@ -586,6 +623,32 @@
 
   <div id="alertBox"></div>
 
+  <!-- 메인 경기 선택 필터 바 (날짜 & 야구장 선택) -->
+  <section class="filter-banner">
+    <div class="filter-card">
+      <div class="input-group" style="margin-bottom: 0;">
+        <label>📅 예매할 경기 날짜 선택</label>
+        <input type="date" id="filterDate" onchange="loadSections()" />
+      </div>
+      <div class="input-group" style="margin-bottom: 0;">
+        <label>🏟️ 예매할 야구장 선택</label>
+        <select id="filterStadium" onchange="loadSections()">
+          <option value="ALL">전체 야구장 경기 보기</option>
+          <option value="잠실야구장">서울 잠실야구장 (LG / 두산)</option>
+          <option value="고척스카이돔">서울 고척스카이돔 (키움)</option>
+          <option value="인천 SSG랜더스필드">인천 SSG랜더스필드 (SSG)</option>
+          <option value="수원 KT위즈파크">수원 KT위즈파크 (KT)</option>
+          <option value="대전 한화생명 볼파크">대전 한화생명 볼파크 (한화)</option>
+          <option value="대구 삼성라이온즈파크">대구 삼성라이온즈파크 (삼성)</option>
+          <option value="광주-기아 챔피언스필드">광주-기아 챔피언스필드 (KIA)</option>
+          <option value="부산 사직야구장">부산 사직야구장 (롯데)</option>
+          <option value="창원 NC파크">창원 NC파크 (NC)</option>
+        </select>
+      </div>
+      <button type="button" class="btn btn-outline" onclick="resetMainFilter()">전체 경기 초기화</button>
+    </div>
+  </section>
+
   <main class="container">
     <!-- 좌측 메인 영역 -->
     <div>
@@ -593,13 +656,13 @@
       <section class="card">
         <div class="card-header">
           <h2><span class="step-num">1</span> 야구장 좌석 선택 및 실시간 예매</h2>
-          <span style="font-size: 12px; color: var(--muted);">좌석 배치도에서 원하는 자리를 클릭하세요</span>
+          <span style="font-size: 12px; color: var(--muted);">예매 완료 시 4자리 예매 비밀번호 자동 발급</span>
         </div>
 
         <div class="user-bar">
-          <div class="user-bar-title">👤 예매자 정보 입력</div>
+          <div class="user-bar-title">👤 비회원 예매자 정보 입력</div>
           <div class="form-grid" style="margin-bottom: 0;">
-            <input type="text" id="fanId" placeholder="팬 ID 또는 연락처 (예: 01012345678)" />
+            <input type="text" id="fanId" placeholder="연락처 / 팬 ID (예: 01012345678)" />
             <input type="text" id="fanName" placeholder="예매자 이름 (예: 김형일)" />
           </div>
         </div>
@@ -623,43 +686,52 @@
             선택한 좌석 일괄 예매하기
           </button>
         </div>
+
+        <!-- 예매 완료 후 발급되는 예매번호 & 4자리 비밀번호 영수증 -->
+        <div class="issued-pin-box" id="issuedPinBox">
+          <div class="issued-pin-title">🔐 비회원 예매 인증 정보가 발급되었습니다! (조회 및 취소 시 필수)</div>
+          <div class="issued-pin-grid">
+            <div class="pin-chip">예매번호 <strong id="issuedBookingCode">-</strong></div>
+            <div class="pin-chip">예매 비밀번호(4자리) <strong id="issuedPinCode">-</strong></div>
+          </div>
+          <div style="font-size: 12px; color: #854d0e;">※ 우측 [내 티켓 조회 / 취소] 입력창에 비밀번호가 자동 입력되었습니다. 타인 유출에 주의하세요.</div>
+        </div>
       </section>
 
-      <!-- 2. 전국 야구장 프리셋 기반 경기/구역 추가 오픈 -->
+      <!-- 2. 전국 야구장 프리셋 기반 경기/구역 추가 오픈 (드롭다운 방식) -->
       <section class="card">
         <div class="card-header">
           <h2><span class="step-num">2</span> 경기 및 좌석 구역 추가 오픈 (야구장 프리셋 + S3 시야 사진)</h2>
         </div>
 
-        <div class="form-grid">
+        <div class="form-grid-3">
           <div class="input-group">
             <label>경기 날짜 선택</label>
             <input type="date" id="gameDate" onchange="applyStadiumPreset()" />
           </div>
           <div class="input-group">
-            <label>전국 KBO 야구장 프리셋 선택</label>
+            <label>전국 KBO 야구장 선택</label>
             <select id="stadiumSelect" onchange="onStadiumChange()">
-              <option value="jamsil">서울 잠실야구장 (LG 트윈스 / 두산 베어스)</option>
-              <option value="gocheok">서울 고척스카이돔 (키움 히어로즈)</option>
-              <option value="munhak">인천 SSG랜더스필드 (SSG 랜더스)</option>
-              <option value="suwon">수원 KT위즈파크 (KT 위즈)</option>
-              <option value="daejeon">대전 한화생명 볼파크 (한화 이글스)</option>
-              <option value="daegu">대구 삼성라이온즈파크 (삼성 라이온즈)</option>
-              <option value="gwangju">광주-기아 챔피언스필드 (KIA 타이거즈)</option>
-              <option value="sajik">부산 사직야구장 (롯데 자이언츠)</option>
-              <option value="changwon">창원 NC파크 (NC 다이노스)</option>
+              <option value="jamsil">서울 잠실야구장 (LG / 두산)</option>
+              <option value="gocheok">서울 고척스카이돔 (키움)</option>
+              <option value="munhak">인천 SSG랜더스필드 (SSG)</option>
+              <option value="suwon">수원 KT위즈파크 (KT)</option>
+              <option value="daejeon">대전 한화생명 볼파크 (한화)</option>
+              <option value="daegu">대구 삼성라이온즈파크 (삼성)</option>
+              <option value="gwangju">광주-기아 챔피언스필드 (KIA)</option>
+              <option value="sajik">부산 사직야구장 (롯데)</option>
+              <option value="changwon">창원 NC파크 (NC)</option>
             </select>
           </div>
-        </div>
-
-        <div class="input-group">
-          <label>추천 구역 프리셋 (클릭 시 구역명, 좌석 배치, 1매 가격이 자동 입력됩니다)</label>
-          <div class="preset-chips" id="zonePresetChips"></div>
+          <div class="input-group">
+            <label>추천 구역 프리셋 선택 (드롭다운)</label>
+            <select id="zonePresetSelect" onchange="applyStadiumPreset()"></select>
+          </div>
         </div>
 
         <div class="form-grid-3">
           <div class="input-group">
-            <label>경기 및 구역명</label>
+            <label>경기 및 구역명 (자동 완성 / 수정 가능)</label>
             <input type="text" id="sectionTitle" />
           </div>
           <div class="input-group">
@@ -680,23 +752,28 @@
       </section>
     </div>
 
-    <!-- 우측 사이드 영역: 내 예매 내역 조회 및 취소 -->
+    <!-- 우측 사이드 영역: 내 예매 내역 조회 및 취소 (비밀번호 인증 필수) -->
     <aside>
       <section class="card" style="position: sticky; top: 20px;">
         <div class="card-header">
           <h2><span class="step-num">3</span> 내 티켓 조회 / 취소</h2>
         </div>
         <div class="input-group">
-          <label>예매 시 입력한 팬 ID (연락처)</label>
+          <label>예매 시 입력한 연락처 (팬 ID)</label>
           <input type="text" id="searchFanId" placeholder="예: 01012345678" />
         </div>
-        <button class="btn btn-accent" style="width: 100%;" onclick="searchTickets()">내 예매 내역 조회</button>
+        <div class="input-group">
+          <label>발급받은 예매 비밀번호 (4자리)</label>
+          <input type="password" id="searchPinCode" maxlength="4" placeholder="숫자 4자리 입력" />
+        </div>
+        <button class="btn btn-accent" style="width: 100%;" onclick="searchTickets()">비밀번호 인증 후 내 티켓 조회</button>
         <div id="myTicketList" style="margin-top: 14px;"></div>
       </section>
     </aside>
   </main>
 
   <script>
+    // 전국 KBO 9개 야구장 상세 좌석 프리셋 (드롭다운 선택용)
     const STADIUM_PRESETS = {
       jamsil: {
         name: "잠실야구장",
@@ -705,7 +782,10 @@
           { label: "1루 네이비석 (306블록)", seats: "A1, A2, A3, A4, A5, A6, B1, B2, B3, B4, B5, B6", price: 15000 },
           { label: "1루 블루석 (207블록)", seats: "A1, A2, A3, A4, A5, A6, B1, B2, B3, B4, B5, B6", price: 22000 },
           { label: "1루 오렌지 응원석 (205블록)", seats: "C1, C2, C3, C4, C5, C6, D1, D2, D3, D4, D5, D6", price: 20000 },
-          { label: "중앙 테이블석 (111블록)", seats: "T1, T2, T3, T4, T5, T6", price: 52000 }
+          { label: "1루 레드석 (108블록)", seats: "R1, R2, R3, R4, R5, R6, R7, R8", price: 18000 },
+          { label: "중앙 테이블석 (111블록)", seats: "T1, T2, T3, T4, T5, T6", price: 52000 },
+          { label: "1루 익사이팅존", seats: "E1, E2, E3, E4, E5, E6", price: 30000 },
+          { label: "외야 그린석 (401블록)", seats: "G1, G2, G3, G4, G5, G6, G7, G8", price: 10000 }
         ]
       },
       gocheok: {
@@ -714,16 +794,22 @@
         zones: [
           { label: "버건디석 (106구역)", seats: "A1, A2, A3, A4, A5, A6, B1, B2, B3, B4, B5, B6", price: 18000 },
           { label: "다크버건디석 (109구역)", seats: "D1, D2, D3, D4, D5, D6", price: 25000 },
-          { label: "R.d-club (로열다이아몬드)", seats: "R1, R2, R3, R4", price: 60000 }
+          { label: "3층 지정석 (304구역)", seats: "C1, C2, C3, C4, C5, C6, C7, C8", price: 15000 },
+          { label: "4층 지정석 (408구역)", seats: "F1, F2, F3, F4, F5, F6, F7, F8", price: 12000 },
+          { label: "R.d-club (로열다이아몬드)", seats: "R1, R2, R3, R4", price: 60000 },
+          { label: "외야 비지정/지정석", seats: "O1, O2, O3, O4, O5, O6", price: 11000 }
         ]
       },
       munhak: {
         name: "인천 SSG랜더스필드",
         defaultMatch: "SSG vs 두산",
         zones: [
-          { label: "으쓱이존 응원석", seats: "S1, S2, S3, S4, S5, S6, S7, S8", price: 17000 },
-          { label: "프렌들리존 (1루)", seats: "F1, F2, F3, F4, F5, F6", price: 32000 },
-          { label: "이마트 바비큐존", seats: "B1, B2, B3, B4", price: 45000 }
+          { label: "으쓱이존 응원석 (1루)", seats: "S1, S2, S3, S4, S5, S6, S7, S8", price: 17000 },
+          { label: "프렌들리존 (1루 내야)", seats: "F1, F2, F3, F4, F5, F6", price: 32000 },
+          { label: "의자지정석 (4층)", seats: "A1, A2, A3, A4, A5, A6, A7, A8", price: 13000 },
+          { label: "이마트 바비큐존", seats: "B1, B2, B3, B4", price: 45000 },
+          { label: "랜더스 라이브존 (포수후면)", seats: "L1, L2, L3, L4", price: 55000 },
+          { label: "외야 패밀리존", seats: "P1, P2, P3, P4, P5, P6", price: 14000 }
         ]
       },
       suwon: {
@@ -731,8 +817,11 @@
         defaultMatch: "KT vs LG",
         zones: [
           { label: "1루 응원지정석 (204구역)", seats: "W1, W2, W3, W4, W5, W6, W7, W8", price: 16000 },
+          { label: "중앙지정석 (210구역)", seats: "C1, C2, C3, C4, C5, C6", price: 22000 },
+          { label: "스카이존 (4층 내야)", seats: "S1, S2, S3, S4, S5, S6, S7, S8", price: 12000 },
           { label: "하이파이브존", seats: "H1, H2, H3, H4, H5, H6", price: 28000 },
-          { label: "지니존 테이블석", seats: "G1, G2, G3, G4", price: 48000 }
+          { label: "지니존 테이블석", seats: "G1, G2, G3, G4", price: 48000 },
+          { label: "외야 잔디/자유석", seats: "O1, O2, O3, O4, O5, O6", price: 10000 }
         ]
       },
       daejeon: {
@@ -740,8 +829,11 @@
         defaultMatch: "한화 vs KIA",
         zones: [
           { label: "1루 내야지정석 A", seats: "E1, E2, E3, E4, E5, E6, E7, E8", price: 17000 },
+          { label: "1루 응원단석", seats: "C1, C2, C3, C4, C5, C6, C7, C8", price: 19000 },
           { label: "중앙 탁자석", seats: "T1, T2, T3, T4, T5, T6", price: 46000 },
-          { label: "인피니티풀/특화석", seats: "P1, P2, P3, P4", price: 55000 }
+          { label: "인피니티풀/특화석", seats: "P1, P2, P3, P4", price: 55000 },
+          { label: "3층 내야상단석", seats: "U1, U2, U3, U4, U5, U6", price: 13000 },
+          { label: "외야 지정석", seats: "O1, O2, O3, O4, O5, O6", price: 11000 }
         ]
       },
       daegu: {
@@ -749,8 +841,11 @@
         defaultMatch: "삼성 vs 롯데",
         zones: [
           { label: "블루존 응원석 (3루)", seats: "B1, B2, B3, B4, B5, B6, B7, B8", price: 17000 },
+          { label: "원정 응원석 (1루)", seats: "A1, A2, A3, A4, A5, A6", price: 17000 },
+          { label: "3층 지정석 (SKY 상단)", seats: "S1, S2, S3, S4, S5, S6, S7, S8", price: 13000 },
           { label: "VIP 테이블석", seats: "V1, V2, V3, V4, V5, V6", price: 50000 },
-          { label: "스윗박스", seats: "S1, S2, S3, S4", price: 65000 }
+          { label: "스윗박스", seats: "W1, W2, W3, W4", price: 65000 },
+          { label: "외야 테이블석", seats: "O1, O2, O3, O4, O5, O6", price: 24000 }
         ]
       },
       gwangju: {
@@ -758,8 +853,11 @@
         defaultMatch: "KIA vs 삼성",
         zones: [
           { label: "K9석 (내야지정)", seats: "K1, K2, K3, K4, K5, K6, K7, K8", price: 16000 },
+          { label: "K8석 (내야상단)", seats: "A1, A2, A3, A4, A5, A6, A7, A8", price: 14000 },
           { label: "챔피언석 (중앙)", seats: "C1, C2, C3, C4, C5, C6", price: 45000 },
-          { label: "타이거즈 가족석", seats: "F1, F2, F3, F4", price: 38000 }
+          { label: "타이거즈 가족석", seats: "F1, F2, F3, F4", price: 38000 },
+          { label: "서프라이즈존", seats: "S1, S2, S3, S4, S5, S6", price: 28000 },
+          { label: "외야 자유/지정석", seats: "O1, O2, O3, O4, O5, O6", price: 10000 }
         ]
       },
       sajik: {
@@ -767,8 +865,11 @@
         defaultMatch: "롯데 vs NC",
         zones: [
           { label: "1루 내야상단 응원석", seats: "L1, L2, L3, L4, L5, L6, L7, L8", price: 16000 },
+          { label: "1루 내야필드석", seats: "F1, F2, F3, F4, F5, F6", price: 22000 },
           { label: "중앙탁자석", seats: "C1, C2, C3, C4, C5, C6", price: 44000 },
-          { label: "익사이팅존", seats: "E1, E2, E3, E4", price: 30000 }
+          { label: "익사이팅존", seats: "E1, E2, E3, E4", price: 30000 },
+          { label: "로케트배터리존", seats: "R1, R2, R3, R4", price: 35000 },
+          { label: "외야 자유/지정석", seats: "O1, O2, O3, O4, O5, O6", price: 10000 }
         ]
       },
       changwon: {
@@ -776,13 +877,15 @@
         defaultMatch: "NC vs 한화",
         zones: [
           { label: "1루 내야응원석 (106구역)", seats: "N1, N2, N3, N4, N5, N6, N7, N8", price: 16000 },
+          { label: "2층 내야지정석", seats: "B1, B2, B3, B4, B5, B6, B7, B8", price: 14000 },
           { label: "프리미엄 테이블석", seats: "P1, P2, P3, P4, P5, P6", price: 48000 },
-          { label: "다이노스 가족석", seats: "D1, D2, D3, D4", price: 36000 }
+          { label: "다이노스 가족석", seats: "D1, D2, D3, D4", price: 36000 },
+          { label: "라운드 테이블석", seats: "R1, R2, R3, R4", price: 40000 },
+          { label: "외야 잔디석", seats: "O1, O2, O3, O4, O5, O6", price: 11000 }
         ]
       }
     };
 
-    let currentZoneIndex = 0;
     let selectedSeats = [];
     let alertTimer = null;
 
@@ -797,44 +900,40 @@
       if (alertTimer) clearTimeout(alertTimer);
       alertTimer = setTimeout(() => {
         box.className = "";
-      }, 3800);
+      }, 4000);
     }
 
     function initDateAndPresets() {
       const today = new Date().toISOString().split("T")[0];
       document.getElementById("gameDate").value = today;
+      // 메인 필터 날짜는 초기엔 전체 보기를 위해 비워둠 (사용자가 원하는 날짜/구장 선택 가능)
       onStadiumChange();
     }
 
-    function onStadiumChange() {
-      currentZoneIndex = 0;
-      renderZoneChips();
-      applyStadiumPreset();
+    function resetMainFilter() {
+      document.getElementById("filterDate").value = "";
+      document.getElementById("filterStadium").value = "ALL";
+      loadSections();
     }
 
-    function renderZoneChips() {
+    function onStadiumChange() {
       const stadiumKey = document.getElementById("stadiumSelect").value;
       const stadium = STADIUM_PRESETS[stadiumKey];
-      const chipContainer = document.getElementById("zonePresetChips");
+      const zoneSelect = document.getElementById("zonePresetSelect");
 
-      chipContainer.innerHTML = stadium.zones.map((z, idx) => `
-        <button type="button" class="preset-chip ${idx === currentZoneIndex ? 'active' : ''}" onclick="selectZonePreset(${idx})">
-          ${z.label} (${formatPrice(z.price)})
-        </button>
+      zoneSelect.innerHTML = stadium.zones.map((z, idx) => `
+        <option value="${idx}">${z.label} (${formatPrice(z.price)})</option>
       `).join("");
-    }
 
-    function selectZonePreset(idx) {
-      currentZoneIndex = idx;
-      renderZoneChips();
       applyStadiumPreset();
     }
 
     function applyStadiumPreset() {
       const dateVal = document.getElementById("gameDate").value;
       const stadiumKey = document.getElementById("stadiumSelect").value;
+      const zoneIdx = Number(document.getElementById("zonePresetSelect").value || 0);
       const stadium = STADIUM_PRESETS[stadiumKey];
-      const zone = stadium.zones[currentZoneIndex];
+      const zone = stadium.zones[zoneIdx] || stadium.zones[0];
 
       const datePrefix = dateVal ? `[${dateVal}] ` : "";
       document.getElementById("sectionTitle").value = `${datePrefix}${stadium.name} (${stadium.defaultMatch}) - ${zone.label}`;
@@ -842,7 +941,6 @@
       document.getElementById("sectionPrice").value = zone.price;
     }
 
-    // 좌석 목록을 열(A, B, C...) 기준으로 그룹화해 야구장 배치도 형태로 렌더링
     function groupSeatsByRow(seats) {
       const rows = {};
       seats.forEach(seat => {
@@ -901,14 +999,25 @@
 
     async function loadSections() {
       const res = await fetch("/api/sections");
-      const sections = await res.json();
+      let sections = await res.json();
       const container = document.getElementById("sectionList");
+
+      // 메인 화면 날짜 & 야구장 필터링 적용
+      const filterDate = document.getElementById("filterDate").value;
+      const filterStadium = document.getElementById("filterStadium").value;
+
+      if (filterDate) {
+        sections = sections.filter(sec => (sec.game_date || "") === filterDate || sec.title.includes(filterDate));
+      }
+      if (filterStadium && filterStadium !== "ALL") {
+        sections = sections.filter(sec => (sec.stadium || "") === filterStadium || sec.title.includes(filterStadium));
+      }
 
       if (!sections.length) {
         container.innerHTML = `
           <div class="empty-state">
-            현재 오픈된 경기/좌석 구역이 없습니다.<br/>
-            아래 <strong>[2. 경기 및 좌석 구역 추가 오픈]</strong>에서 야구장 프리셋을 선택해 좌석을 오픈해보세요!
+            선택한 날짜/야구장 조건에 오픈된 경기가 없습니다.<br/>
+            상단 필터에서 <strong>[전체 경기 초기화]</strong>를 누르거나 아래에서 새 경기를 오픈해보세요!
           </div>`;
         return;
       }
@@ -945,7 +1054,6 @@
               </div>
             </div>
 
-            <!-- 야구장 실제 좌석 배치도 -->
             <div class="stadium-map-box">
               <div class="field-banner">▲ GROUND / 그라운드(홈플레이트) 방향 ▲</div>
               <div class="seat-legend">
@@ -1035,15 +1143,24 @@
       }
 
       showAlert(data.message);
-      selectedSeats = [];
+
+      // 발급된 예매번호와 4자리 비밀번호 표시 및 조회창 자동 채움
+      document.getElementById("issuedBookingCode").textContent = data.booking_code;
+      document.getElementById("issuedPinCode").textContent = data.pin_code;
+      document.getElementById("issuedPinBox").classList.add("show");
+
       document.getElementById("searchFanId").value = fanId;
+      document.getElementById("searchPinCode").value = data.pin_code;
+
+      selectedSeats = [];
       loadSections();
       searchTickets(true);
     }
 
     async function searchTickets(silent = false) {
       const fanId = document.getElementById("searchFanId").value;
-      const res = await fetch(`/api/my-tickets?fan_id=${encodeURIComponent(fanId)}`);
+      const pinCode = document.getElementById("searchPinCode").value;
+      const res = await fetch(`/api/my-tickets?fan_id=${encodeURIComponent(fanId)}&pin_code=${encodeURIComponent(pinCode)}`);
       const data = await res.json();
       const list = document.getElementById("myTicketList");
 
@@ -1056,6 +1173,7 @@
       list.innerHTML = data.map(t => `
         <div class="ticket-card">
           <div class="ticket-info">
+            <span style="font-size:11px; font-weight:700; color:#2563eb;">예매번호: ${t.booking_code}</span>
             <strong>${t.section_title} · ${t.seat}석</strong>
             <span>예매자: ${t.fan_name} (${t.fan_id})</span>
             <span>결제금액: ${formatPrice(t.price)}</span>
@@ -1066,10 +1184,11 @@
     }
 
     async function cancelTicket(sectionId, slot, fanId) {
+      const pinCode = document.getElementById("searchPinCode").value;
       const res = await fetch("/api/cancel", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ section_id: sectionId, seat: slot, fan_id: fanId })
+        body: JSON.stringify({ section_id: sectionId, seat: slot, fan_id: fanId, pin_code: pinCode })
       });
       const data = await res.json();
       if (!res.ok) return showAlert(data.error, true);
