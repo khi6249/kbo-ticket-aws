@@ -1,0 +1,22 @@
+services:
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "8080:80"
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx/html:/usr/share/nginx/html:ro
+    depends_on:
+      - backend
+
+  backend:
+    build: ./backend
+    environment:
+      - REDIS_HOST=redis
+      - AWS_REGION=ap-northeast-2
+      - S3_BUCKET_NAME=kbo-ticket-2224024
+    depends_on:
+      - redis
+
+  redis:
+    image: redis:alpine

@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>KBO 프로야구 인기 좌석 실시간 선착순 예매</title>
+  <style>
+    body { font-family: sans-serif; max-width: 900px; margin: 30px auto; padding: 0 16px; background: #f3f4f6; }
+    h1 { color: #111827; }
+    .card { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
+    input, button { padding: 8px 12px; margin: 4px 0; border-radius: 4px; border: 1px solid #d1d5db; }
+    button { background: #c8102e; color: #fff; border: none; cursor: pointer; font-weight: bold; }
+    button:disabled { background: #9ca3af; cursor: not-allowed; }
+    button.secondary { background: #1f2937; }
+    .section-item { border: 1px solid #e5e7eb; padding: 14px; border-radius: 6px; margin-top: 12px; display: flex; gap: 16px; }
+    .section-item img { width: 160px; height: 110px; object-fit: cover; border-radius: 4px; background: #eee; }
+    .seat-btn { margin-right: 6px; margin-top: 6px; }
+    .msg { padding: 10px; border-radius: 4px; margin-top: 10px; display: none; font-weight: bold; }
+    .msg.ok { background: #dcfce7; color: #166534; display: block; }
+    .msg.err { background: #fee2e2; color: #991b1b; display: block; }
+  </style>
+</head>
+<body>
+  <h1>⚾ KBO 프로야구 인기 좌석 실시간 선착순 예매</h1>
+  <div id="alertBox" class="msg"></div>
+
+  <!-- 기능 1: 경기 및 좌석 구역 등록 (S3 시야 사진 업로드) -->
+  <div class="card">
+    <h2>1. 경기 및 좌석 구역 등록 (AWS S3 시야 사진 저장)</h2>
+    <input type="text" id="sectionTitle" placeholder="예: 잠실 LG vs KT (1루 블루석)" style="width: 240px;" />
+    <input type="text" id="sectionSeats" placeholder="좌석 번호 (쉼표 구분: A1, A2, A3)" style="width: 240px;" />
+    <input type="file" id="sectionImage" accept="image/*" />
+    <button onclick="createSection()">구역 등록</button>
+  </div>
+
+  <!-- 기능 2: 실시간 선착순 좌석 예매 -->
+  <div class="card">
+    <h2>2. 실시간 선착순 좌석 예매</h2>
+    <div>
+      <input type="text" id="fanId" placeholder="팬 ID / 연락처 (예: 01012345678)" />
+      <input type="text" id="fanName" placeholder="예매자 이름 (예: 김형일)" />
+    </div>
+    <div id="sectionList">불러오는 중...</div>
+  </div>
+
+  <!-- 기능 3: 내 티켓 조회 및 취소 -->
+  <div class="card">
+    <h2>3. 내 예매 내역 조회 및 취소</h2>
+    <input type="text" id="searchFanId" placeholder="조회할 팬 ID(연락처) 입력" />
+    <button class="secondary" onclick="searchTickets()">내 티켓 조회</button>
+    <div id="myTicketList" style="margin-top: 10px;"></div>
+  </div>
+
+  <script>
+    function showAlert(text, isError = false) {
+      const box = document.getElementById("alertBox");
+      box.textContent = text;
+      box.className = "msg " + (isError ? "err" : "ok");
+    }
+
+    async function loadSections() {
+      const res = await fetch("/api/sections");
+      const sections = await res.json();
+      const container = document.getElementById("sectionList");
+      if (!sections.length) {
+        container.innerHTML = "<p>등록된 경기/구역이 없습니다. 위에서 먼저 등록해주세요.</p>";
+        return;
+      }
+      container.innerHTML = sections.map(sec => `
+        <div class="section-item">
+          <img src="${sec.image_url}" alt="${sec.title}" />
+          <div>
+            <strong>${sec.title}</strong> <small>(S3 경로: <a href="${sec.image_url}" target="_blank">시야 원본 보기</a>)</small><br/>
+            <div>
+              ${sec.seats.map(seat => {
+                const booked = sec.seats_status[seat];
+                return booked
+                  ? `<button class="seat-btn" disabled>${seat}석 (매진: ${booked.fan_name})</button>`
+                  : `<button class="seat-btn" onclick="reserveSeat('${sec.id}', '${seat}')">${seat}석 예매하기</button>`;
+              }).join("")}
+            </div>
+          </div>
+        </div>
+      `).join("");
+    }
+
+    async function createSection() {
+      const formData = new FormData();
+      formData.append("title", document.getElementById("sectionTitle").value);
+      formData.append("seats", document.getElementById("sectionSeats").value);
+      const fileInput = document.getElementById("sectionImage");
+      if (fileInput.files[0]) formData.append("image", fileInput.files[0]);
+
+      const res = await fetch("/api/sections", { method: "POST", body: formData });
+      const data = await res.json();
+      if (!res.ok) return showAlert(data.error, true);
+      showAlert(data.message);
+      document.getElementById("sectionTitle").value = "";
+      document.getElementById("sectionSeats").value = "";
+      fileInput.value = "";
+      loadSections();
+    }
+
+    async function reserveSeat(sectionId, seat) {
+      const fanId = document.getElementById("fanId").value;
+      const fanName = document.getElementById("fanName").value;
+      const res = await fetch("/api/reserve", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ section_id: sectionId, seat, fan_id: fanId, fan_name: fanName })
+      });
+      const data = await res.json();
+      if (!res.ok) return showAlert(data.error, true);
+      showAlert(data.message);
+      loadSections();
+    }
+
+    async function searchTickets() {
+      const fanId = document.getElementById("searchFanId").value;
+      const res = await fetch(`/api/my-tickets?fan_id=${encodeURIComponent(fanId)}`);
+      const data = await res.json();
+      const list = document.getElementById("myTicketList");
+      if (!res.ok) {
+        list.innerHTML = "";
+        return showAlert(data.error, true);
+      }
+      list.innerHTML = data.map(t => `
+        <div style="margin-top: 6px;">
+          ⚾ <strong>${t.section_title}</strong> - ${t.seat}석 (${t.fan_name} / ${t.fan_id})
+          <button class="secondary" onclick="cancelTicket('${t.section_id}', '${t.seat}', '${t.fan_id}')">예매 취소</button>
+        </div>
+      `).join("");
+    }
+
+    async function cancelTicket(sectionId, seat, fanId) {
+      const res = await fetch("/api/cancel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ section_id: sectionId, seat, fan_id: fanId })
+      });
+      const data = await res.json();
+      if (!res.ok) return showAlert(data.error, true);
+      showAlert(data.message);
+      searchTickets();
+      loadSections();
+    }
+
+    loadSections();
+  </script>
+</body>
+</html>
