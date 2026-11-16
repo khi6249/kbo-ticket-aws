@@ -38,7 +38,7 @@
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     }
     .header-inner {
-      max-width: 1080px;
+      max-width: 1120px;
       margin: 0 auto;
       padding: 0 20px;
       display: flex;
@@ -113,7 +113,7 @@
     }
 
     .container {
-      max-width: 1080px;
+      max-width: 1120px;
       margin: 28px auto 50px;
       padding: 0 20px;
     }
@@ -191,7 +191,7 @@
       background: #fff;
     }
 
-    /* 한글/달력 표 만들기 스타일 드래그 좌석 그리드 선택기 */
+    /* 한글/달력 표 만들기 스타일 무제한 확장형 드래그 좌석 그리드 선택기 */
     .table-picker-wrapper {
       background: #f8fafc;
       border: 1.5px solid #cbd5e1;
@@ -205,29 +205,55 @@
       align-items: center;
       margin-bottom: 12px;
       flex-wrap: wrap;
-      gap: 8px;
+      gap: 10px;
     }
     .table-picker-title {
       font-size: 13px;
       font-weight: 800;
       color: var(--primary);
     }
+    .grid-controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .grid-size-inputs {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: #fff;
+      border: 1px solid #cbd5e1;
+      padding: 4px 10px;
+      border-radius: 7px;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--muted);
+    }
+    .grid-size-inputs input {
+      width: 58px;
+      padding: 4px 6px;
+      font-size: 12px;
+      font-weight: 700;
+      text-align: center;
+      border-radius: 5px;
+    }
     .table-picker-badge {
       background: #dbeafe;
       color: #1e40af;
       font-size: 13px;
       font-weight: 800;
-      padding: 4px 12px;
-      border-radius: 6px;
+      padding: 5px 12px;
+      border-radius: 7px;
     }
     .grid-builder {
-      display: inline-grid;
-      grid-template-columns: 36px repeat(12, 38px);
+      display: grid;
       gap: 5px;
       user-select: none;
-      max-width: 100%;
-      overflow-x: auto;
-      padding-bottom: 4px;
+      width: 100%;
+      max-height: 440px;
+      overflow: auto;
+      padding-bottom: 6px;
     }
     .grid-axis {
       font-size: 11px;
@@ -236,9 +262,12 @@
       display: flex;
       align-items: center;
       justify-content: center;
+      background: #e2e8f0;
+      border-radius: 4px;
+      height: 28px;
     }
     .grid-cell {
-      width: 38px;
+      width: 40px;
       height: 32px;
       background: #fff;
       border: 1.5px solid #cbd5e1;
@@ -371,11 +400,20 @@
         </div>
       </div>
 
-      <!-- 한글/달력 표 만들기 스타일 드래그 좌석 생성기 -->
+      <!-- 한글/달력 표 만들기 스타일 무제한 확장형 드래그 좌석 생성기 -->
       <div class="table-picker-wrapper">
         <div class="table-picker-top">
           <span class="table-picker-title">🖱️ 마우스 드래그(또는 클릭)로 오픈할 행×열 좌석 배치 크기 지정</span>
-          <span class="table-picker-badge" id="gridDimensionBadge">2행 × 6열 (총 12석)</span>
+          <div class="grid-controls">
+            <div class="grid-size-inputs">
+              <span>격자판 최대 크기:</span>
+              <input type="number" id="maxRowsInput" value="15" min="1" max="200" onchange="resizeGridBuilder()" title="최대 행 수" />
+              <span>행 ×</span>
+              <input type="number" id="maxColsInput" value="20" min="1" max="200" onchange="resizeGridBuilder()" title="최대 열 수" />
+              <span>열</span>
+            </div>
+            <span class="table-picker-badge" id="gridDimensionBadge">2행 × 6열 (총 12석)</span>
+          </div>
         </div>
         <div class="grid-builder" id="seatGridBuilder"></div>
       </div>
@@ -386,7 +424,7 @@
           <input type="text" id="sectionTitle" />
         </div>
         <div class="input-group">
-          <label>자동 생성된 좌석 번호 (수정 가능)</label>
+          <label>자동 생성된 좌석 번호 (직접 수정/추가 가능)</label>
           <input type="text" id="sectionSeats" />
         </div>
         <div class="input-group">
@@ -502,14 +540,23 @@
       }
     };
 
-    const ROW_LETTERS = ["A", "B", "C", "D", "E", "F", "G", "H"];
-    const MAX_ROWS = 8;
-    const MAX_COLS = 12;
-
+    let MAX_ROWS = 15;
+    let MAX_COLS = 20;
     let selectedGridRows = 2;
     let selectedGridCols = 6;
     let isDraggingGrid = false;
     let alertTimer = null;
+
+    // 0 -> A, 25 -> Z, 26 -> AA, 27 -> AB 형태로 행 이름 무제한 생성
+    function getRowLabel(index) {
+      let label = "";
+      let n = index;
+      while (n >= 0) {
+        label = String.fromCharCode((n % 26) + 65) + label;
+        n = Math.floor(n / 26) - 1;
+      }
+      return label;
+    }
 
     function formatPrice(num) {
       return Number(num || 0).toLocaleString("ko-KR") + "원";
@@ -525,28 +572,40 @@
       }, 4000);
     }
 
+    function resizeGridBuilder() {
+      const rVal = Math.max(1, Number(document.getElementById("maxRowsInput").value || 15));
+      const cVal = Math.max(1, Number(document.getElementById("maxColsInput").value || 20));
+      MAX_ROWS = rVal;
+      MAX_COLS = cVal;
+      buildSeatGridPicker();
+    }
+
     function buildSeatGridPicker() {
       const builder = document.getElementById("seatGridBuilder");
+      builder.style.gridTemplateColumns = `44px repeat(${MAX_COLS}, 40px)`;
+
       let html = `<div class="grid-axis">행\\열</div>`;
       for (let c = 1; c <= MAX_COLS; c++) {
         html += `<div class="grid-axis">${c}</div>`;
       }
       for (let r = 1; r <= MAX_ROWS; r++) {
-        html += `<div class="grid-axis">${ROW_LETTERS[r - 1]}열</div>`;
+        const rowName = getRowLabel(r - 1);
+        html += `<div class="grid-axis">${rowName}열</div>`;
         for (let c = 1; c <= MAX_COLS; c++) {
           const isActive = r <= selectedGridRows && c <= selectedGridCols;
           html += `<div class="grid-cell ${isActive ? 'active' : ''}"
                         data-r="${r}" data-c="${c}"
                         onmousedown="startGridSelect(${r}, ${c})"
                         onmouseenter="hoverGridSelect(${r}, ${c})"
-                        onclick="commitGridSelect(${r}, ${c})">${ROW_LETTERS[r - 1]}${c}</div>`;
+                        onclick="commitGridSelect(${r}, ${c})">${rowName}${c}</div>`;
         }
       }
       builder.innerHTML = html;
-      document.addEventListener("mouseup", () => {
-        if (isDraggingGrid) isDraggingGrid = false;
-      });
     }
+
+    document.addEventListener("mouseup", () => {
+      if (isDraggingGrid) isDraggingGrid = false;
+    });
 
     function startGridSelect(r, c) {
       isDraggingGrid = true;
@@ -562,16 +621,26 @@
       selectedGridRows = rows;
       selectedGridCols = cols;
 
-      document.querySelectorAll("#seatGridBuilder .grid-cell").forEach(cell => {
-        const cr = Number(cell.dataset.r);
-        const cc = Number(cell.dataset.c);
-        cell.classList.toggle("active", cr <= rows && cc <= cols);
-      });
+      // 선택한 행/열이 현재 격자판 크기보다 크면 자동으로 격자판 확장
+      if (rows > MAX_ROWS || cols > MAX_COLS) {
+        MAX_ROWS = Math.max(MAX_ROWS, rows);
+        MAX_COLS = Math.max(MAX_COLS, cols);
+        document.getElementById("maxRowsInput").value = MAX_ROWS;
+        document.getElementById("maxColsInput").value = MAX_COLS;
+        buildSeatGridPicker();
+      } else {
+        document.querySelectorAll("#seatGridBuilder .grid-cell").forEach(cell => {
+          const cr = Number(cell.dataset.r);
+          const cc = Number(cell.dataset.c);
+          cell.classList.toggle("active", cr <= rows && cc <= cols);
+        });
+      }
 
       const generatedSeats = [];
       for (let r = 0; r < rows; r++) {
+        const rowName = getRowLabel(r);
         for (let c = 1; c <= cols; c++) {
-          generatedSeats.push(`${ROW_LETTERS[r]}${c}`);
+          generatedSeats.push(`${rowName}${c}`);
         }
       }
       document.getElementById("sectionSeats").value = generatedSeats.join(", ");
