@@ -215,7 +215,7 @@
     }
     .mini-chip-btn:hover { background: #cbd5e1; }
 
-    /* 표 만들기 스타일 무제한 확장형 드래그 좌석 그리드 선택기 */
+    /* 다중 섹터 드래그 좌석 그리드 선택기 */
     .table-picker-wrapper {
       background: #f8fafc;
       border: 1.5px solid #cbd5e1;
@@ -236,10 +236,16 @@
       font-weight: 800;
       color: var(--primary);
     }
+    .table-picker-sub {
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 600;
+      margin-top: 2px;
+    }
     .grid-controls {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
       flex-wrap: wrap;
     }
     .grid-size-inputs {
@@ -255,12 +261,38 @@
       color: var(--muted);
     }
     .grid-size-inputs input {
-      width: 58px;
+      width: 56px;
       padding: 4px 6px;
       font-size: 12px;
       font-weight: 700;
       text-align: center;
       border-radius: 5px;
+    }
+    .grid-action-btn {
+      background: #fff;
+      border: 1.5px solid #cbd5e1;
+      color: var(--text);
+      padding: 5px 11px;
+      border-radius: 7px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.12s;
+    }
+    .grid-action-btn:hover:not(:disabled) {
+      background: #e2e8f0;
+    }
+    .grid-action-btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+    .grid-action-btn.clear {
+      border-color: #fecaca;
+      color: #b91c1c;
+      background: #fef2f2;
+    }
+    .grid-action-btn.clear:hover:not(:disabled) {
+      background: #fee2e2;
     }
     .table-picker-badge {
       background: #dbeafe;
@@ -309,6 +341,11 @@
       background: var(--selected);
       border-color: #1d4ed8;
       color: #fff;
+    }
+    .grid-cell.preview {
+      background: #93c5fd;
+      border-color: #2563eb;
+      color: #0f172a;
     }
 
     .btn {
@@ -449,19 +486,24 @@
         </div>
       </div>
 
-      <!-- 표 만들기 스타일 무제한 확장형 드래그 좌석 생성기 -->
+      <!-- 다중 섹터 자유 드래그 좌석 생성기 -->
       <div class="table-picker-wrapper">
         <div class="table-picker-top">
-          <span class="table-picker-title">🖱️ 마우스 드래그(또는 클릭)로 오픈할 행×열 좌석 배치 크기 지정</span>
+          <div>
+            <div class="table-picker-title">🖱️ 원하는 위치에서 드래그해 여러 섹터(예: A1~A4 + C1~C4)를 자유롭게 추가하세요</div>
+            <div class="table-picker-sub">※ 드래그할 때마다 좌석 블록이 누적 추가되며, 선택된 칸을 다시 클릭하면 개별 해제됩니다.</div>
+          </div>
           <div class="grid-controls">
             <div class="grid-size-inputs">
-              <span>격자판 최대 크기:</span>
+              <span>격자판:</span>
               <input type="number" id="maxRowsInput" value="15" min="1" max="200" onchange="resizeGridBuilder()" title="최대 행 수" />
               <span>행 ×</span>
               <input type="number" id="maxColsInput" value="20" min="1" max="200" onchange="resizeGridBuilder()" title="최대 열 수" />
               <span>열</span>
             </div>
-            <span class="table-picker-badge" id="gridDimensionBadge">2행 × 6열 (총 12석)</span>
+            <button type="button" class="grid-action-btn" id="undoBtn" onclick="undoSelection()" disabled>↩ 실행 취소</button>
+            <button type="button" class="grid-action-btn clear" id="clearAllBtn" onclick="clearAllSelection()" disabled>🗑️ 전체 취소</button>
+            <span class="table-picker-badge" id="gridDimensionBadge">총 0석 선택됨</span>
           </div>
         </div>
         <div class="grid-builder" id="seatGridBuilder"></div>
@@ -587,9 +629,13 @@
 
     let MAX_ROWS = 15;
     let MAX_COLS = 20;
-    let selectedGridRows = 2;
-    let selectedGridCols = 6;
+
+    // 다중 블록 누적 선택 및 실행 취소 히스토리 상태
+    let selectedCellSet = new Set(); // "r-c" (1-based) 저장
+    let selectionHistory = [];       // 이전 상태 스냅샷 배열 (실행 취소용)
     let isDraggingGrid = false;
+    let dragStart = null;
+    let dragCurrent = null;
     let alertTimer = null;
 
     function getRowLabel(index) {
@@ -616,7 +662,6 @@
       }, 4000);
     }
 
-    // 시연용 빠른 시간 설정 (현재 브라우저 로컬 시각 기준 N분 뒤)
     function setOpenInMinutes(mins) {
       const target = new Date(Date.now() + mins * 60000);
       const offset = target.getTimezoneOffset() * 60000;
@@ -626,6 +671,32 @@
 
     function clearOpenAt() {
       document.getElementById("openAtInput").value = "";
+    }
+
+    function saveHistorySnapshot() {
+      selectionHistory.push(new Set(selectedCellSet));
+      if (selectionHistory.length > 50) selectionHistory.shift();
+      updateActionButtons();
+    }
+
+    function updateActionButtons() {
+      document.getElementById("undoBtn").disabled = selectionHistory.length === 0;
+      document.getElementById("clearAllBtn").disabled = selectedCellSet.size === 0;
+    }
+
+    function undoSelection() {
+      if (selectionHistory.length === 0) return;
+      selectedCellSet = selectionHistory.pop();
+      syncGridUIAndInput();
+      updateActionButtons();
+    }
+
+    function clearAllSelection() {
+      if (selectedCellSet.size === 0) return;
+      saveHistorySnapshot();
+      selectedCellSet.clear();
+      syncGridUIAndInput();
+      updateActionButtons();
     }
 
     function resizeGridBuilder() {
@@ -648,35 +719,108 @@
         const rowName = getRowLabel(r - 1);
         html += `<div class="grid-axis">${rowName}열</div>`;
         for (let c = 1; c <= MAX_COLS; c++) {
-          const isActive = r <= selectedGridRows && c <= selectedGridCols;
+          const key = `${r}-${c}`;
+          const isActive = selectedCellSet.has(key);
           html += `<div class="grid-cell ${isActive ? 'active' : ''}"
                         data-r="${r}" data-c="${c}"
-                        onmousedown="startGridSelect(${r}, ${c})"
-                        onmouseenter="hoverGridSelect(${r}, ${c})"
-                        onclick="commitGridSelect(${r}, ${c})">${rowName}${c}</div>`;
+                        onmousedown="onCellMouseDown(event, ${r}, ${c})"
+                        onmouseenter="onCellMouseEnter(${r}, ${c})">${rowName}${c}</div>`;
         }
       }
       builder.innerHTML = html;
+      syncGridUIAndInput();
+    }
+
+    function onCellMouseDown(e, r, c) {
+      if (e.button !== 0) return; // 좌클릭만 허용
+      isDraggingGrid = true;
+      dragStart = { r, c };
+      dragCurrent = { r, c };
+      renderDragPreview();
+    }
+
+    function onCellMouseEnter(r, c) {
+      if (!isDraggingGrid || !dragStart) return;
+      dragCurrent = { r, c };
+      renderDragPreview();
+    }
+
+    function renderDragPreview() {
+      if (!dragStart || !dragCurrent) return;
+      const rMin = Math.min(dragStart.r, dragCurrent.r);
+      const rMax = Math.max(dragStart.r, dragCurrent.r);
+      const cMin = Math.min(dragStart.c, dragCurrent.c);
+      const cMax = Math.max(dragStart.c, dragCurrent.c);
+
+      document.querySelectorAll("#seatGridBuilder .grid-cell").forEach(cell => {
+        const cr = Number(cell.dataset.r);
+        const cc = Number(cell.dataset.c);
+        const inPreview = cr >= rMin && cr <= rMax && cc >= cMin && cc <= cMax;
+        cell.classList.toggle("preview", inPreview);
+      });
     }
 
     document.addEventListener("mouseup", () => {
-      if (isDraggingGrid) isDraggingGrid = false;
+      if (!isDraggingGrid || !dragStart || !dragCurrent) return;
+      isDraggingGrid = false;
+
+      const rMin = Math.min(dragStart.r, dragCurrent.r);
+      const rMax = Math.max(dragStart.r, dragCurrent.r);
+      const cMin = Math.min(dragStart.c, dragCurrent.c);
+      const cMax = Math.max(dragStart.c, dragCurrent.c);
+
+      saveHistorySnapshot();
+
+      // 단일 칸 클릭 시 토글(선택↔해제), 드래그 영역 지정 시 해당 블록 누적 추가
+      if (rMin === rMax && cMin === cMax) {
+        const key = `${rMin}-${cMin}`;
+        if (selectedCellSet.has(key)) {
+          selectedCellSet.delete(key);
+        } else {
+          selectedCellSet.add(key);
+        }
+      } else {
+        for (let r = rMin; r <= rMax; r++) {
+          for (let c = cMin; c <= cMax; c++) {
+            selectedCellSet.add(`${r}-${c}`);
+          }
+        }
+      }
+
+      dragStart = null;
+      dragCurrent = null;
+      syncGridUIAndInput();
+      updateActionButtons();
     });
 
-    function startGridSelect(r, c) {
-      isDraggingGrid = true;
-      commitGridSelect(r, c);
+    function syncGridUIAndInput() {
+      document.querySelectorAll("#seatGridBuilder .grid-cell").forEach(cell => {
+        const key = `${cell.dataset.r}-${cell.dataset.c}`;
+        cell.classList.remove("preview");
+        cell.classList.toggle("active", selectedCellSet.has(key));
+      });
+
+      // 행(r) 우선, 열(c) 오름차순으로 정렬해 A1~A4, C1~C4 순서로 변환
+      const sortedCoords = Array.from(selectedCellSet)
+        .map(k => {
+          const [r, c] = k.split("-").map(Number);
+          return { r, c };
+        })
+        .sort((a, b) => (a.r !== b.r ? a.r - b.r : a.c - b.c));
+
+      const generatedSeats = sortedCoords.map(({ r, c }) => `${getRowLabel(r - 1)}${c}`);
+      document.getElementById("sectionSeats").value = generatedSeats.join(", ");
+      document.getElementById("gridDimensionBadge").textContent = `총 ${generatedSeats.length}석 선택됨`;
     }
 
-    function hoverGridSelect(r, c) {
-      if (!isDraggingGrid) return;
-      commitGridSelect(r, c);
-    }
-
-    function commitGridSelect(rows, cols) {
-      selectedGridRows = rows;
-      selectedGridCols = cols;
-
+    function setInitialPresetCells(rows, cols) {
+      selectedCellSet.clear();
+      selectionHistory = [];
+      for (let r = 1; r <= rows; r++) {
+        for (let c = 1; c <= cols; c++) {
+          selectedCellSet.add(`${r}-${c}`);
+        }
+      }
       if (rows > MAX_ROWS || cols > MAX_COLS) {
         MAX_ROWS = Math.max(MAX_ROWS, rows);
         MAX_COLS = Math.max(MAX_COLS, cols);
@@ -684,22 +828,9 @@
         document.getElementById("maxColsInput").value = MAX_COLS;
         buildSeatGridPicker();
       } else {
-        document.querySelectorAll("#seatGridBuilder .grid-cell").forEach(cell => {
-          const cr = Number(cell.dataset.r);
-          const cc = Number(cell.dataset.c);
-          cell.classList.toggle("active", cr <= rows && cc <= cols);
-        });
+        syncGridUIAndInput();
       }
-
-      const generatedSeats = [];
-      for (let r = 0; r < rows; r++) {
-        const rowName = getRowLabel(r);
-        for (let c = 1; c <= cols; c++) {
-          generatedSeats.push(`${rowName}${c}`);
-        }
-      }
-      document.getElementById("sectionSeats").value = generatedSeats.join(", ");
-      document.getElementById("gridDimensionBadge").textContent = `${rows}행 × ${cols}열 (총 ${generatedSeats.length}석)`;
+      updateActionButtons();
     }
 
     function initAdminPage() {
@@ -732,7 +863,7 @@
       const datePrefix = dateVal ? `[${dateVal}] ` : "";
       document.getElementById("sectionTitle").value = `${datePrefix}${stadium.name} (${stadium.defaultMatch}) - ${zone.label}`;
       document.getElementById("sectionPrice").value = zone.price;
-      commitGridSelect(zone.rows || 2, zone.cols || 6);
+      setInitialPresetCells(zone.rows || 2, zone.cols || 6);
     }
 
     async function createSection() {
