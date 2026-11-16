@@ -155,6 +155,12 @@
       font-weight: 700;
     }
 
+    .form-grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-bottom: 14px;
+    }
     .form-grid-3 {
       display: grid;
       grid-template-columns: 1fr 1.2fr 1.2fr;
@@ -162,7 +168,7 @@
       margin-bottom: 14px;
     }
     @media (max-width: 720px) {
-      .form-grid-3 { grid-template-columns: 1fr; }
+      .form-grid-2, .form-grid-3 { grid-template-columns: 1fr; }
     }
     .input-group {
       display: flex;
@@ -175,7 +181,7 @@
       font-weight: 700;
       color: var(--muted);
     }
-    input[type="text"], input[type="number"], input[type="date"], input[type="file"], select {
+    input[type="text"], input[type="number"], input[type="date"], input[type="datetime-local"], input[type="file"], select {
       width: 100%;
       padding: 10px 12px;
       border: 1.5px solid var(--border);
@@ -191,7 +197,25 @@
       background: #fff;
     }
 
-    /* 한글/달력 표 만들기 스타일 무제한 확장형 드래그 좌석 그리드 선택기 */
+    .open-time-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .mini-chip-btn {
+      background: #e2e8f0;
+      color: #1e293b;
+      border: none;
+      padding: 10px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .mini-chip-btn:hover { background: #cbd5e1; }
+
+    /* 표 만들기 스타일 무제한 확장형 드래그 좌석 그리드 선택기 */
     .table-picker-wrapper {
       background: #f8fafc;
       border: 1.5px solid #cbd5e1;
@@ -314,7 +338,6 @@
     }
     .btn-danger:hover { background: #fecaca; }
 
-    /* 등록된 구역 관리 리스트 */
     .manage-item {
       border: 1px solid var(--border);
       border-radius: 10px;
@@ -349,6 +372,16 @@
       color: var(--muted);
       margin-top: 2px;
     }
+    .status-tag {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 4px;
+      margin-right: 6px;
+    }
+    .status-tag.open { background: #dcfce7; color: #15803d; }
+    .status-tag.wait { background: #fef3c7; color: #b45309; }
   </style>
 </head>
 <body>
@@ -377,7 +410,7 @@
 
       <div class="form-grid-3">
         <div class="input-group">
-          <label>경기 날짜 선택</label>
+          <label>경기 관람 날짜 선택</label>
           <input type="date" id="gameDate" onchange="applyStadiumPreset()" />
         </div>
         <div class="input-group">
@@ -400,7 +433,23 @@
         </div>
       </div>
 
-      <!-- 한글/달력 표 만들기 스타일 무제한 확장형 드래그 좌석 생성기 -->
+      <!-- 티켓 오픈 일시 설정 -->
+      <div class="form-grid-2">
+        <div class="input-group">
+          <label>⏰ 티켓 예매 오픈 일시 설정 (비워두면 즉시 오픈)</label>
+          <div class="open-time-row">
+            <input type="datetime-local" id="openAtInput" />
+            <button type="button" class="mini-chip-btn" onclick="setOpenInMinutes(1)" title="시연용: 1분 뒤 오픈 테스트">1분 뒤</button>
+            <button type="button" class="mini-chip-btn" onclick="clearOpenAt()">즉시 오픈</button>
+          </div>
+        </div>
+        <div class="input-group">
+          <label>좌석 1매 가격 (원)</label>
+          <input type="number" id="sectionPrice" step="1000" min="0" />
+        </div>
+      </div>
+
+      <!-- 표 만들기 스타일 무제한 확장형 드래그 좌석 생성기 -->
       <div class="table-picker-wrapper">
         <div class="table-picker-top">
           <span class="table-picker-title">🖱️ 마우스 드래그(또는 클릭)로 오픈할 행×열 좌석 배치 크기 지정</span>
@@ -418,7 +467,7 @@
         <div class="grid-builder" id="seatGridBuilder"></div>
       </div>
 
-      <div class="form-grid-3">
+      <div class="form-grid-2">
         <div class="input-group">
           <label>경기 및 구역명</label>
           <input type="text" id="sectionTitle" />
@@ -427,23 +476,19 @@
           <label>자동 생성된 좌석 번호 (직접 수정/추가 가능)</label>
           <input type="text" id="sectionSeats" />
         </div>
-        <div class="input-group">
-          <label>좌석 1매 가격 (원)</label>
-          <input type="number" id="sectionPrice" step="1000" min="0" />
-        </div>
       </div>
 
       <div class="input-group">
         <label>좌석 시야 사진 파일 (AWS S3 버킷 저장)</label>
         <input type="file" id="sectionImage" accept="image/*" />
       </div>
-      <button class="btn btn-primary" onclick="createSection()">+ 지정한 좌석 배치로 판매 오픈하기</button>
+      <button class="btn btn-primary" onclick="createSection()">+ 지정한 좌석 배치 및 오픈 일시로 등록하기</button>
     </section>
 
     <!-- 2. 현재 오픈된 경기/좌석 구역 목록 및 삭제 관리 -->
     <section class="card">
       <div class="card-header">
-        <h2><span class="step-num">2</span> 현재 오픈 중인 경기 / 좌석 구역 관리</h2>
+        <h2><span class="step-num">2</span> 현재 등록된 경기 / 좌석 구역 관리</h2>
       </div>
       <div id="manageSectionList">불러오는 중...</div>
     </section>
@@ -547,7 +592,6 @@
     let isDraggingGrid = false;
     let alertTimer = null;
 
-    // 0 -> A, 25 -> Z, 26 -> AA, 27 -> AB 형태로 행 이름 무제한 생성
     function getRowLabel(index) {
       let label = "";
       let n = index;
@@ -570,6 +614,18 @@
       alertTimer = setTimeout(() => {
         box.className = "";
       }, 4000);
+    }
+
+    // 시연용 빠른 시간 설정 (현재 브라우저 로컬 시각 기준 N분 뒤)
+    function setOpenInMinutes(mins) {
+      const target = new Date(Date.now() + mins * 60000);
+      const offset = target.getTimezoneOffset() * 60000;
+      const localISO = new Date(target.getTime() - offset).toISOString().slice(0, 16);
+      document.getElementById("openAtInput").value = localISO;
+    }
+
+    function clearOpenAt() {
+      document.getElementById("openAtInput").value = "";
     }
 
     function resizeGridBuilder() {
@@ -621,7 +677,6 @@
       selectedGridRows = rows;
       selectedGridCols = cols;
 
-      // 선택한 행/열이 현재 격자판 크기보다 크면 자동으로 격자판 확장
       if (rows > MAX_ROWS || cols > MAX_COLS) {
         MAX_ROWS = Math.max(MAX_ROWS, rows);
         MAX_COLS = Math.max(MAX_COLS, cols);
@@ -684,11 +739,13 @@
       const stadiumKey = document.getElementById("stadiumSelect").value;
       const stadiumName = STADIUM_PRESETS[stadiumKey].name;
       const gameDate = document.getElementById("gameDate").value;
+      const openAt = document.getElementById("openAtInput").value;
 
       const formData = new FormData();
       formData.append("title", document.getElementById("sectionTitle").value);
       formData.append("game_date", gameDate);
       formData.append("stadium", stadiumName);
+      formData.append("open_at", openAt);
       formData.append("seats", document.getElementById("sectionSeats").value);
       formData.append("price", document.getElementById("sectionPrice").value);
       const fileInput = document.getElementById("sectionImage");
@@ -716,14 +773,19 @@
       container.innerHTML = sections.map(sec => {
         const total = sec.seats.length;
         const booked = sec.seats.filter(s => sec.seats_status[s]).length;
+        const openLabel = sec.open_at ? sec.open_at.replace("T", " ") : "즉시 오픈";
+        const statusBadge = sec.is_open
+          ? `<span class="status-tag open">예매 진행 중</span>`
+          : `<span class="status-tag wait">⏰ ${openLabel} 오픈 예정</span>`;
+
         return `
           <div class="manage-item">
             <div class="manage-left">
               <img class="manage-thumb" src="${sec.image_url}" alt="${sec.title}" />
               <div>
-                <div class="manage-title">${sec.title}</div>
+                <div class="manage-title">${statusBadge}${sec.title}</div>
                 <div class="manage-meta">
-                  1매 ${formatPrice(sec.price)} · 총 ${total}석 (예매 ${booked}석 / 잔여 ${total - booked}석) ·
+                  오픈 일시: ${openLabel} · 1매 ${formatPrice(sec.price)} · 총 ${total}석 (예매 ${booked}석 / 잔여 ${total - booked}석) ·
                   <a href="${sec.image_url}" target="_blank" style="color:#2563eb; text-decoration:none; font-weight:600;">S3 시야 이미지 ↗</a>
                 </div>
               </div>

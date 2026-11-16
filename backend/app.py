@@ -2,13 +2,16 @@ import os
 import json
 import uuid
 import secrets
-from datetime import date
+from datetime import date, datetime, timezone, timedelta
 import boto3
 import redis
 from flask import Flask, request, jsonify
 from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
+
+# 한국 표준시(KST, UTC+9)
+KST = timezone(timedelta(hours=9))
 
 # Redis 연결
 r = redis.Redis(host=os.getenv("REDIS_HOST", "redis"), port=6379, decode_responses=True)
@@ -25,6 +28,26 @@ def allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
+def parse_kst_datetime(dt_str):
+    if not dt_str:
+        return None
+    try:
+        dt = datetime.fromisoformat(dt_str)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=KST)
+        return dt.astimezone(KST)
+    except ValueError:
+        return None
+
+
+def is_section_open(section_data):
+    open_dt = parse_kst_datetime(section_data.get("open_at", ""))
+    if not open_dt:
+        return True, None
+    now_kst = datetime.now(KST)
+    return now_kst >= open_dt, open_dt
+
+
 # 서버 시작 시 등록된 구역이 없으면 기본 KBO 경기 좌석 프리셋 자동 등록
 def init_default_sections():
     try:
@@ -37,6 +60,7 @@ def init_default_sections():
                 "title": f"[{today_str}] 잠실야구장 (LG vs KT) - 1루 블루석 (207블록)",
                 "game_date": today_str,
                 "stadium": "잠실야구장",
+                "open_at": "",
                 "price": 22000,
                 "seats": [
                     "A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8",
@@ -51,6 +75,7 @@ def init_default_sections():
                 "title": f"[{today_str}] 잠실야구장 (LG vs KT) - 1루 네이비석 (306블록)",
                 "game_date": today_str,
                 "stadium": "잠실야구장",
+                "open_at": "",
                 "price": 15000,
                 "seats": [
                     "A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8",
@@ -74,7 +99,12 @@ init_default_sections()
 def health_check():
     try:
         r.ping()
-        return jsonify({"status": "ok", "redis": "connected", "s3_bucket": S3_BUCKET}), 200
+        return jsonify({
+            "status": "ok",
+            "redis": "connected",
+            "s3_bucket": S3_BUCKET,
+            "server_time_kst": datetime.now(KST).isoformat()
+        }), 200
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
@@ -92,13 +122,14 @@ def get_sections():
             booked_raw = r.get(lock_key)
             if booked_raw:
                 booked_info = json.loads(booked_raw)
-                # 민감한 비밀번호 해시는 외부 노출 제외
                 seats_status[seat] = {
                     "fan_name": booked_info.get("fan_name"),
                     "booking_code": booked_info.get("booking_code"),
                 }
             else:
                 seats_status[seat] = None
+        opened, _ = is_section_open(data)
+        data["is_open"] = opened
         data["seats_status"] = seats_status
         sections.append(data)
     return jsonify(sections), 200
@@ -109,6 +140,7 @@ def create_section():
     title = request.form.get("title", "").strip()
     game_date = request.form.get("game_date", "").strip()
     stadium = request.form.get("stadium", "").strip()
+    open_at = request.form.get("open_at", "").strip()
     seats_raw = request.form.get("seats", "").strip()
     price_raw = request.form.get("price", "15000").strip()
     file = request.files.get("image")
@@ -117,6 +149,8 @@ def create_section():
         return jsonify({"error": "경기/구역명과 예매 가능 좌석 번호를 모두 입력하세요."}), 400
     if len(title) > 70:
         return jsonify({"error": "경기/구역명은 70자 이하로 입력하세요."}), 400
+    if open_at and not parse_kst_datetime(open_at):
+        return jsonify({"error": "티켓 오픈 일시 형식이 올바르지 않습니다."}), 400
 
     try:
         price = int(price_raw)
@@ -153,13 +187,14 @@ def create_section():
         "title": title,
         "game_date": game_date,
         "stadium": stadium,
+        "open_at": open_at,
         "price": price,
         "seats": seats,
         "image_url": image_url,
         "s3_key": s3_key,
     }
     r.set(f"section:{section_id}", json.dumps(section_data))
-    return jsonify({"message": "경기 및 좌석 구역이 오픈되었습니다!", "section": section_data}), 201
+    return jsonify({"message": "경기 및 좌석 구역이 등록되었습니다!", "section": section_data}), 201
 
 
 @app.route("/api/sections/<section_id>", methods=["DELETE"])
@@ -182,7 +217,7 @@ def delete_section(section_id):
     return jsonify({"message": "경기 구역이 삭제되었습니다."}), 200
 
 
-# 2-A. 단건 선착순 좌석 예매 (예매번호 + 4자리 비밀번호 자동 발급)
+# 2-A. 단건 선착순 좌석 예매
 @app.route("/api/reserve", methods=["POST"])
 def reserve_seat():
     data = request.get_json() or {}
@@ -201,12 +236,16 @@ def reserve_seat():
         return jsonify({"error": "존재하지 않는 경기/구역입니다."}), 404
 
     section_data = json.loads(section_raw)
+    opened, open_dt = is_section_open(section_data)
+    if not opened:
+        return jsonify({"error": f"아직 티켓 오픈 전입니다. (오픈 일시: {open_dt.strftime('%Y-%m-%d %H:%M')})"}), 403
+
     if seat not in section_data["seats"]:
         return jsonify({"error": "해당 구역에 존재하지 않는 좌석 번호입니다."}), 400
 
     price = section_data.get("price", 0)
     booking_code = f"KBO-{uuid.uuid4().hex[:6].upper()}"
-    pin_code = f"{secrets.randbelow(9000) + 1000}"  # 1000~9999 난수 4자리
+    pin_code = f"{secrets.randbelow(9000) + 1000}"
     pin_hash = generate_password_hash(pin_code)
 
     lock_key = f"ticket:{section_id}:{seat}"
@@ -232,7 +271,7 @@ def reserve_seat():
     }), 201
 
 
-# 2-B. 다중 좌석 일괄 선착순 예매 (예매번호 + 4자리 비밀번호 자동 발급)
+# 2-B. 다중 좌석 일괄 선착순 예매
 @app.route("/api/reserve-batch", methods=["POST"])
 def reserve_batch():
     data = request.get_json() or {}
@@ -248,7 +287,7 @@ def reserve_batch():
         return jsonify({"error": "예매할 좌석을 1개 이상 선택하세요."}), 400
 
     booking_code = f"KBO-{uuid.uuid4().hex[:6].upper()}"
-    pin_code = f"{secrets.randbelow(9000) + 1000}"  # 일괄 예매 건에 공통 4자리 비밀번호 발급
+    pin_code = f"{secrets.randbelow(9000) + 1000}"
     pin_hash = generate_password_hash(pin_code)
 
     succeeded = []
@@ -264,6 +303,11 @@ def reserve_batch():
             continue
 
         section_data = json.loads(section_raw)
+        opened, open_dt = is_section_open(section_data)
+        if not opened:
+            failed.append(f"{seat}석({open_dt.strftime('%H:%M')} 오픈 예정)")
+            continue
+
         if seat not in section_data["seats"]:
             failed.append(f"{seat}석(없는 좌석)")
             continue
@@ -288,11 +332,11 @@ def reserve_batch():
             failed.append(f"{seat}석(선착순 매진)")
 
     if not succeeded:
-        return jsonify({"error": f"선택한 좌석이 모두 매진되었습니다. ({', '.join(failed)})"}), 409
+        return jsonify({"error": f"예매 불가: {', '.join(failed)}"}), 403
 
     msg = f"총 {len(succeeded)}석 예매 확정! (결제금액: {total_amount:,}원)"
     if failed:
-        msg += f" / 일부 매진 제외: {', '.join(failed)}"
+        msg += f" / 제외: {', '.join(failed)}"
 
     return jsonify({
         "message": msg,
@@ -304,7 +348,7 @@ def reserve_batch():
     }), 201
 
 
-# 3. 내 티켓 조회 및 예매 취소 (연락처 + 4자리 예매 비밀번호 필수 검증)
+# 3. 내 티켓 조회 및 예매 취소
 @app.route("/api/my-tickets", methods=["GET"])
 def get_my_tickets():
     fan_id = request.args.get("fan_id", "").strip()
@@ -322,7 +366,6 @@ def get_my_tickets():
     if not fan_tickets:
         return jsonify({"error": "해당 연락처로 예매된 티켓 내역이 없습니다."}), 404
 
-    # 비밀번호 해시가 일치하는 티켓만 필터링
     verified_tickets = []
     for t in fan_tickets:
         if t.get("pin_hash") and check_password_hash(t["pin_hash"], pin_code):

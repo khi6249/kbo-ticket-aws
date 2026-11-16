@@ -387,7 +387,7 @@
     .remain-badge {
       font-size: 12px;
       font-weight: 700;
-      padding: 3px 10px;
+      padding: 4px 10px;
       border-radius: 20px;
       background: var(--success-bg);
       color: var(--success);
@@ -396,6 +396,36 @@
     .remain-badge.soldout {
       background: #f1f5f9;
       color: #64748b;
+    }
+    .remain-badge.countdown {
+      background: #fef3c7;
+      color: #b45309;
+      border: 1px solid #fcd34d;
+    }
+
+    /* 오픈 대기 안내 오버레이 배너 */
+    .countdown-notice {
+      background: #fffbeb;
+      border: 1.5px solid #fcd34d;
+      color: #92400e;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .countdown-timer {
+      background: #b45309;
+      color: #fff;
+      padding: 3px 10px;
+      border-radius: 6px;
+      font-variant-numeric: tabular-nums;
+      font-size: 13px;
     }
 
     .stadium-map-box {
@@ -460,7 +490,7 @@
       background: #e2e8f0;
       padding: 3px 7px;
       border-radius: 4px;
-      min-width: 34px;
+      min-width: 36px;
       text-align: center;
     }
     .seat-tile {
@@ -495,6 +525,8 @@
       border-color: #cbd5e1;
       color: #94a3b8;
       cursor: not-allowed;
+    }
+    .seat-tile.soldout:disabled {
       text-decoration: line-through;
     }
 
@@ -707,6 +739,7 @@
   <script>
     let selectedSeats = [];
     let alertTimer = null;
+    let countdownInterval = null;
 
     function formatPrice(num) {
       return Number(num || 0).toLocaleString("ko-KR") + "원";
@@ -793,6 +826,37 @@
       btnEl.textContent = `총 ${selectedSeats.length}석 (${formatPrice(totalAmount)}) 일괄 예매하기`;
     }
 
+    // 오픈 대기 중인 구역의 실시간 1초 카운트다운 업데이트 및 오픈 정각 자동 새로고침
+    function startCountdownLoop() {
+      if (countdownInterval) clearInterval(countdownInterval);
+      countdownInterval = setInterval(() => {
+        const timers = document.querySelectorAll(".countdown-timer[data-open-at]");
+        if (!timers.length) return;
+
+        let shouldReload = false;
+        const now = Date.now();
+
+        timers.forEach(el => {
+          const openTime = new Date(el.dataset.openAt).getTime();
+          const diff = openTime - now;
+          if (diff <= 0) {
+            shouldReload = true;
+          } else {
+            const totalSec = Math.floor(diff / 1000);
+            const hrs = String(Math.floor(totalSec / 3600)).padStart(2, "0");
+            const mins = String(Math.floor((totalSec % 3600) / 60)).padStart(2, "0");
+            const secs = String(totalSec % 60).padStart(2, "0");
+            el.textContent = `오픈까지 ${hrs}:${mins}:${secs} 남음`;
+          }
+        });
+
+        if (shouldReload) {
+          showAlert("티켓 예매가 오픈되었습니다! 좌석을 선택하세요.");
+          loadSections();
+        }
+      }, 1000);
+    }
+
     async function loadSections() {
       const res = await fetch("/api/sections");
       let sections = await res.json();
@@ -825,7 +889,20 @@
         const groupedRows = groupSeatsByRow(sec.seats);
         const safeTitle = sec.title.replace(/'/g, "\\'");
 
-        selectedSeats = selectedSeats.filter(sel => !(sel.section_id === sec.id && sec.seats_status[sel.seat]));
+        const openAtStr = sec.open_at || "";
+        const isLockedByTime = openAtStr && new Date(openAtStr).getTime() > Date.now() && !sec.is_open;
+        const formattedOpenAt = openAtStr ? openAtStr.replace("T", " ") : "";
+
+        selectedSeats = selectedSeats.filter(sel => !(sel.section_id === sec.id && (sec.seats_status[sel.seat] || isLockedByTime)));
+
+        let badgeHtml = "";
+        if (isLockedByTime) {
+          badgeHtml = `<span class="remain-badge countdown">⏰ ${formattedOpenAt} 오픈</span>`;
+        } else if (remainCount === 0) {
+          badgeHtml = `<span class="remain-badge soldout">전석 매진</span>`;
+        } else {
+          badgeHtml = `<span class="remain-badge">잔여 ${remainCount} / ${totalSeats}석</span>`;
+        }
 
         return `
           <div class="section-item">
@@ -840,18 +917,23 @@
                   <div class="section-title">${sec.title}</div>
                   <span class="section-price-tag">1매 ${formatPrice(seatPrice)}</span>
                 </div>
-                <span class="remain-badge ${remainCount === 0 ? 'soldout' : ''}">
-                  ${remainCount === 0 ? '전석 매진' : `잔여 ${remainCount} / ${totalSeats}석`}
-                </span>
+                ${badgeHtml}
               </div>
             </div>
+
+            ${isLockedByTime ? `
+              <div class="countdown-notice">
+                <span>🔒 티켓 오픈 전입니다. 오픈 일시: <strong>${formattedOpenAt}</strong></span>
+                <span class="countdown-timer" data-open-at="${openAtStr}">계산 중...</span>
+              </div>
+            ` : ''}
 
             <div class="stadium-map-box">
               <div class="field-banner">▲ GROUND / 그라운드(홈플레이트) 방향 ▲</div>
               <div class="seat-legend">
                 <span class="legend-item"><i class="legend-box legend-avail"></i> 선택 가능</span>
                 <span class="legend-item"><i class="legend-box legend-sel"></i> 내 선택</span>
-                <span class="legend-item"><i class="legend-box legend-sold"></i> 매진</span>
+                <span class="legend-item"><i class="legend-box legend-sold"></i> 매진/잠금</span>
               </div>
               <div class="seat-rows">
                 ${Object.entries(groupedRows).map(([rowName, rowSeats]) => `
@@ -860,7 +942,10 @@
                     ${rowSeats.map(seat => {
                       const booked = sec.seats_status[seat];
                       if (booked) {
-                        return `<button class="seat-tile" disabled title="매진 (${booked.fan_name})">${seat}</button>`;
+                        return `<button class="seat-tile soldout" disabled title="매진 (${booked.fan_name})">${seat}</button>`;
+                      }
+                      if (isLockedByTime) {
+                        return `<button class="seat-tile" disabled title="${formattedOpenAt} 오픈 예정">${seat}</button>`;
                       }
                       const isSelected = selectedSeats.some(sel => sel.section_id === sec.id && sel.seat === seat);
                       return `<button class="seat-tile ${isSelected ? 'selected' : ''}" onclick="toggleSeatSelection('${sec.id}', '${safeTitle}', '${seat}', ${seatPrice})">${seat}</button>`;
@@ -874,6 +959,7 @@
       }).join("");
 
       renderSelectedSummary();
+      startCountdownLoop();
     }
 
     async function reserveSelectedSeats() {
