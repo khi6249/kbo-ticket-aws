@@ -52,25 +52,33 @@ def get_sections():
 @app.route("/api/sections", methods=["POST"])
 def create_section():
     title = request.form.get("title", "").strip()
+    game_date = request.form.get("game_date", "").strip()
+    stadium = request.form.get("stadium", "").strip()
     seats_raw = request.form.get("seats", "").strip()
+    price_raw = request.form.get("price", "15000").strip()
     file = request.files.get("image")
 
-    # 경계 및 예외 검증
     if not title or not seats_raw:
         return jsonify({"error": "경기/구역명과 예매 가능 좌석 번호를 모두 입력하세요."}), 400
-    if len(title) > 50:
-        return jsonify({"error": "경기/구역명은 50자 이하로 입력하세요."}), 400
+    if len(title) > 60:
+        return jsonify({"error": "경기/구역명은 60자 이하로 입력하세요."}), 400
+
+    try:
+        price = int(price_raw)
+        if price < 0 or price > 1000000:
+            return jsonify({"error": "좌석 가격은 0원 이상 1,000,000원 이하로 입력하세요."}), 400
+    except ValueError:
+        return jsonify({"error": "좌석 가격은 숫자로 입력하세요."}), 400
+
     if not file or file.filename == "":
         return jsonify({"error": "좌석 시야 이미지 파일을 첨부해야 합니다."}), 400
     if not allowed_file(file.filename):
         return jsonify({"error": "허용되지 않는 파일 형식입니다. (png, jpg, jpeg, gif, webp만 가능)"}), 400
 
-    # 중복 좌석 제거 및 순서 유지
     seats = list(dict.fromkeys([s.strip() for s in seats_raw.split(",") if s.strip()]))
     if not seats:
         return jsonify({"error": "유효한 좌석 번호를 1개 이상 입력하세요."}), 400
 
-    # 한글 파일명 안전 처리: 원본 파일명에서 확장자 직접 추출
     ext = file.filename.rsplit(".", 1)[1].lower()
     s3_key = f"views/{uuid.uuid4().hex}.{ext}"
     try:
@@ -88,12 +96,15 @@ def create_section():
     section_data = {
         "id": section_id,
         "title": title,
+        "game_date": game_date,
+        "stadium": stadium,
+        "price": price,
         "seats": seats,
         "image_url": image_url,
         "s3_key": s3_key,
     }
     r.set(f"section:{section_id}", json.dumps(section_data))
-    return jsonify({"message": "경기 및 좌석 구역 등록 완료!", "section": section_data}), 201
+    return jsonify({"message": "경기 및 좌석 구역이 오픈되었습니다!", "section": section_data}), 201
 
 
 @app.route("/api/sections/<section_id>", methods=["DELETE"])
@@ -103,22 +114,20 @@ def delete_section(section_id):
         return jsonify({"error": "존재하지 않는 경기/구역입니다."}), 404
 
     section_data = json.loads(section_raw)
-    # S3 객체 삭제
     try:
         if section_data.get("s3_key"):
             s3.delete_object(Bucket=S3_BUCKET, Key=section_data["s3_key"])
     except Exception:
         pass
 
-    # Redis 구역 및 해당 구역 예매 데이터 삭제
     r.delete(f"section:{section_id}")
     for seat in section_data.get("seats", []):
         r.delete(f"ticket:{section_id}:{seat}")
 
-    return jsonify({"message": "구역 및 S3 이미지가 삭제되었습니다."}), 200
+    return jsonify({"message": "경기 구역 및 S3 이미지가 삭제되었습니다."}), 200
 
 
-# 2. 실시간 선착순 좌석 예매 (Redis SET NX 동시성 제어)
+# 2-A. 단건 선착순 좌석 예매
 @app.route("/api/reserve", methods=["POST"])
 def reserve_seat():
     data = request.get_json() or {}
@@ -140,20 +149,80 @@ def reserve_seat():
     if seat not in section_data["seats"]:
         return jsonify({"error": "해당 구역에 존재하지 않는 좌석 번호입니다."}), 400
 
+    price = section_data.get("price", 0)
     lock_key = f"ticket:{section_id}:{seat}"
     ticket_payload = json.dumps({
         "section_id": section_id,
         "section_title": section_data["title"],
         "seat": seat,
+        "price": price,
         "fan_id": fan_id,
         "fan_name": fan_name,
     })
 
-    is_success = r.set(lock_key, ticket_payload, nx=True)
-    if not is_success:
+    if not r.set(lock_key, ticket_payload, nx=True):
         return jsonify({"error": "이미 선착순 매진된 좌석입니다."}), 409
 
-    return jsonify({"message": f"[{section_data['title']} / {seat}석] 선착순 예매가 확정되었습니다!"}), 201
+    return jsonify({"message": f"[{section_data['title']} / {seat}석] 선착순 예매 확정! (결제금액: {price:,}원)"}), 201
+
+
+# 2-B. 다중 좌석 일괄 선착순 예매
+@app.route("/api/reserve-batch", methods=["POST"])
+def reserve_batch():
+    data = request.get_json() or {}
+    items = data.get("items", [])
+    fan_id = data.get("fan_id", "").strip()
+    fan_name = data.get("fan_name", "").strip()
+
+    if not fan_id or not fan_name:
+        return jsonify({"error": "예매자 팬 ID(연락처)와 이름을 먼저 입력하세요."}), 400
+    if len(fan_id) > 30 or len(fan_name) > 20:
+        return jsonify({"error": "팬 ID는 30자, 이름은 20자 이하로 입력하세요."}), 400
+    if not items or not isinstance(items, list):
+        return jsonify({"error": "예매할 좌석을 1개 이상 선택하세요."}), 400
+
+    succeeded = []
+    failed = []
+    total_amount = 0
+
+    for item in items:
+        section_id = str(item.get("section_id", "")).strip()
+        seat = str(item.get("seat", "")).strip()
+        section_raw = r.get(f"section:{section_id}")
+        if not section_raw:
+            failed.append(f"{seat}석(구역 없음)")
+            continue
+
+        section_data = json.loads(section_raw)
+        if seat not in section_data["seats"]:
+            failed.append(f"{seat}석(없는 좌석)")
+            continue
+
+        price = section_data.get("price", 0)
+        lock_key = f"ticket:{section_id}:{seat}"
+        ticket_payload = json.dumps({
+            "section_id": section_id,
+            "section_title": section_data["title"],
+            "seat": seat,
+            "price": price,
+            "fan_id": fan_id,
+            "fan_name": fan_name,
+        })
+
+        if r.set(lock_key, ticket_payload, nx=True):
+            succeeded.append(f"{section_data['title']} {seat}석")
+            total_amount += price
+        else:
+            failed.append(f"{seat}석(선착순 매진)")
+
+    if not succeeded:
+        return jsonify({"error": f"선택한 좌석이 모두 매진되었습니다. ({', '.join(failed)})"}), 409
+
+    msg = f"총 {len(succeeded)}석 예매 확정! (총 결제금액: {total_amount:,}원)"
+    if failed:
+        msg += f" / 일부 매진 제외: {', '.join(failed)}"
+
+    return jsonify({"message": msg, "succeeded": succeeded, "failed": failed, "total_amount": total_amount}), 201
 
 
 # 3. 내 티켓 조회 및 예매 취소
