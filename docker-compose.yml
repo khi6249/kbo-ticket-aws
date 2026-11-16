@@ -13,7 +13,7 @@ services:
     build: ./backend
     environment:
       - REDIS_HOST=redis
-      - AWS_REGION=ap-northeast-2
+      - AWS_REGION=ap-southeast-2
       - S3_BUCKET_NAME=kbo-ticket-2224024
     depends_on:
       - redis
