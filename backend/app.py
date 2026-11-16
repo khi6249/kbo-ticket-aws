@@ -1,6 +1,7 @@
 import os
 import json
 import uuid
+from datetime import date
 import boto3
 import redis
 from flask import Flask, request, jsonify
@@ -20,6 +21,50 @@ ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "webp"}
 
 def allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+# 서버 시작 시 등록된 구역이 없으면 기본 KBO 경기 좌석 프리셋 자동 등록
+def init_default_sections():
+    try:
+        if len(r.keys("section:*")) > 0:
+            return
+        today_str = date.today().isoformat()
+        defaults = [
+            {
+                "id": "jamsil-blue",
+                "title": f"[{today_str}] 잠실야구장 (LG vs KT) - 1루 블루석 (207블록)",
+                "game_date": today_str,
+                "stadium": "잠실야구장",
+                "price": 22000,
+                "seats": [
+                    "A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8",
+                    "B1", "B2", "B3", "B4", "B5", "B6", "B7", "B8",
+                    "C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8"
+                ],
+                "image_url": "https://images.unsplash.com/photo-1508344928928-7165b67de128?auto=format&fit=crop&w=800&q=80",
+                "s3_key": "",
+            },
+            {
+                "id": "jamsil-navy",
+                "title": f"[{today_str}] 잠실야구장 (LG vs KT) - 1루 네이비석 (306블록)",
+                "game_date": today_str,
+                "stadium": "잠실야구장",
+                "price": 15000,
+                "seats": [
+                    "A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8",
+                    "B1", "B2", "B3", "B4", "B5", "B6", "B7", "B8"
+                ],
+                "image_url": "https://images.unsplash.com/photo-1566577739112-5180d4bf9390?auto=format&fit=crop&w=800&q=80",
+                "s3_key": "",
+            },
+        ]
+        for sec in defaults:
+            r.set(f"section:{sec['id']}", json.dumps(sec))
+    except Exception:
+        pass
+
+
+init_default_sections()
 
 
 # 0. 헬스 체크
@@ -60,8 +105,8 @@ def create_section():
 
     if not title or not seats_raw:
         return jsonify({"error": "경기/구역명과 예매 가능 좌석 번호를 모두 입력하세요."}), 400
-    if len(title) > 60:
-        return jsonify({"error": "경기/구역명은 60자 이하로 입력하세요."}), 400
+    if len(title) > 70:
+        return jsonify({"error": "경기/구역명은 70자 이하로 입력하세요."}), 400
 
     try:
         price = int(price_raw)
@@ -124,7 +169,7 @@ def delete_section(section_id):
     for seat in section_data.get("seats", []):
         r.delete(f"ticket:{section_id}:{seat}")
 
-    return jsonify({"message": "경기 구역 및 S3 이미지가 삭제되었습니다."}), 200
+    return jsonify({"message": "경기 구역이 삭제되었습니다."}), 200
 
 
 # 2-A. 단건 선착순 좌석 예매

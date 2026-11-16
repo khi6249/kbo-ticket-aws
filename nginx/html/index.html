@@ -12,6 +12,7 @@
       --accent-hover: #b5152a;
       --selected: #2563eb;
       --selected-bg: #eff6ff;
+      --field-green: #166534;
       --bg: #f1f5f9;
       --card: #ffffff;
       --text: #1e293b;
@@ -32,7 +33,6 @@
       -webkit-font-smoothing: antialiased;
     }
 
-    /* 상단 네비게이션 바 */
     header {
       background: linear-gradient(135deg, #09182e 0%, #163663 100%);
       color: #fff;
@@ -40,7 +40,7 @@
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     }
     .header-inner {
-      max-width: 1140px;
+      max-width: 1160px;
       margin: 0 auto;
       padding: 0 20px;
       display: flex;
@@ -69,7 +69,6 @@
       letter-spacing: -0.5px;
     }
 
-    /* 토스트 알림 배너 */
     #alertBox {
       position: fixed;
       top: 20px;
@@ -99,9 +98,8 @@
       border-left: 5px solid #ef4444;
     }
 
-    /* 메인 레이아웃 */
     .container {
-      max-width: 1140px;
+      max-width: 1160px;
       margin: 28px auto;
       padding: 0 20px;
       display: grid;
@@ -109,7 +107,7 @@
       gap: 24px;
       align-items: start;
     }
-    @media (max-width: 880px) {
+    @media (max-width: 900px) {
       .container { grid-template-columns: 1fr; }
     }
 
@@ -151,7 +149,6 @@
       font-weight: 700;
     }
 
-    /* 입력 폼 스타일 */
     .form-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -194,7 +191,6 @@
       background: #fff;
     }
 
-    /* 야구장 구역 프리셋 버튼 칩 */
     .preset-chips {
       display: flex;
       flex-wrap: wrap;
@@ -212,16 +208,13 @@
       cursor: pointer;
       transition: all 0.15s;
     }
-    .preset-chip:hover {
-      background: #dbeafe;
-    }
+    .preset-chip:hover { background: #dbeafe; }
     .preset-chip.active {
       background: var(--primary);
       color: #fff;
       border-color: var(--primary);
     }
 
-    /* 버튼 스타일 */
     .btn {
       padding: 11px 16px;
       border: none;
@@ -275,7 +268,6 @@
       color: #b91c1c;
     }
 
-    /* 예매자 정보 바 */
     .user-bar {
       background: #f8fafc;
       border: 1.5px solid #cbd5e1;
@@ -288,6 +280,199 @@
       font-weight: 700;
       color: var(--primary);
       margin-bottom: 8px;
+    }
+
+    /* 야구장 좌석 배치도(스타디움 맵) 스타일 */
+    .section-item {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px;
+      margin-bottom: 18px;
+      background: #fff;
+      box-shadow: 0 2px 6px rgba(15, 23, 42, 0.03);
+    }
+    .section-header-row {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 14px;
+      align-items: flex-start;
+    }
+    @media (max-width: 600px) {
+      .section-header-row { flex-direction: column; }
+    }
+    .section-thumb {
+      width: 170px;
+      height: 115px;
+      border-radius: 8px;
+      overflow: hidden;
+      flex-shrink: 0;
+      position: relative;
+      background: #e2e8f0;
+    }
+    .section-thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .s3-tag {
+      position: absolute;
+      bottom: 6px;
+      left: 6px;
+      background: rgba(15, 37, 68, 0.85);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 4px;
+      text-decoration: none;
+    }
+    .section-info-col {
+      flex: 1;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 8px;
+    }
+    .section-meta {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--muted);
+      margin-bottom: 2px;
+    }
+    .section-title {
+      font-size: 16px;
+      font-weight: 800;
+      color: #0f172a;
+      letter-spacing: -0.3px;
+    }
+    .section-price-tag {
+      display: inline-block;
+      margin-top: 6px;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--selected);
+      background: var(--selected-bg);
+      padding: 3px 9px;
+      border-radius: 5px;
+    }
+    .section-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .remain-badge {
+      font-size: 12px;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: 20px;
+      background: var(--success-bg);
+      color: var(--success);
+      white-space: nowrap;
+    }
+    .remain-badge.soldout {
+      background: #f1f5f9;
+      color: #64748b;
+    }
+
+    /* 스타디움 미니 좌석 맵 영역 */
+    .stadium-map-box {
+      background: #f8fafc;
+      border: 1.5px solid #cbd5e1;
+      border-radius: 10px;
+      padding: 14px;
+    }
+    .field-banner {
+      background: linear-gradient(90deg, #14532d 0%, #166534 50%, #14532d 100%);
+      color: #dcfce7;
+      text-align: center;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 1.5px;
+      padding: 5px 10px;
+      border-radius: 6px 6px 24px 24px;
+      margin-bottom: 12px;
+      box-shadow: inset 0 -2px 4px rgba(0, 0, 0, 0.2);
+    }
+    .seat-legend {
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+      font-size: 11px;
+      color: var(--muted);
+      margin-bottom: 10px;
+      font-weight: 600;
+    }
+    .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .legend-box {
+      width: 12px;
+      height: 12px;
+      border-radius: 3px;
+      display: inline-block;
+    }
+    .legend-avail { background: #fff; border: 1.5px solid #94a3b8; }
+    .legend-sel { background: var(--selected); border: 1.5px solid var(--selected); }
+    .legend-sold { background: #e2e8f0; border: 1.5px solid #cbd5e1; }
+
+    .seat-rows {
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+      align-items: center;
+    }
+    .seat-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .row-label {
+      font-size: 11px;
+      font-weight: 800;
+      color: var(--primary);
+      background: #e2e8f0;
+      padding: 3px 7px;
+      border-radius: 4px;
+      min-width: 34px;
+      text-align: center;
+    }
+    .seat-tile {
+      width: 46px;
+      height: 40px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 800;
+      border: 1.5px solid #94a3b8;
+      background: #fff;
+      color: var(--text);
+      cursor: pointer;
+      transition: all 0.12s;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    .seat-tile:hover:not(:disabled) {
+      border-color: var(--selected);
+      color: var(--selected);
+      transform: translateY(-1px);
+    }
+    .seat-tile.selected {
+      background: var(--selected);
+      border-color: var(--selected);
+      color: #fff;
+      box-shadow: 0 2px 6px rgba(37, 99, 235, 0.4);
+    }
+    .seat-tile:disabled {
+      background: #e2e8f0;
+      border-color: #cbd5e1;
+      color: #94a3b8;
+      cursor: not-allowed;
+      text-decoration: line-through;
     }
 
     /* 선택된 좌석 요약 및 총 결제 금액 바 */
@@ -353,153 +538,6 @@
       letter-spacing: -0.5px;
     }
 
-    /* 경기/구역 카드 */
-    .section-item {
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 16px;
-      margin-bottom: 14px;
-      display: flex;
-      gap: 18px;
-      background: #fff;
-      transition: box-shadow 0.15s;
-    }
-    .section-item:hover {
-      box-shadow: 0 6px 16px rgba(15, 23, 42, 0.08);
-    }
-    @media (max-width: 600px) {
-      .section-item { flex-direction: column; }
-    }
-    .section-thumb {
-      width: 190px;
-      height: 140px;
-      border-radius: 8px;
-      overflow: hidden;
-      flex-shrink: 0;
-      position: relative;
-      background: #e2e8f0;
-    }
-    .section-thumb img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-    }
-    .s3-tag {
-      position: absolute;
-      bottom: 6px;
-      left: 6px;
-      background: rgba(15, 37, 68, 0.85);
-      color: #fff;
-      font-size: 11px;
-      font-weight: 600;
-      padding: 2px 8px;
-      border-radius: 4px;
-      text-decoration: none;
-    }
-    .section-body {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-    }
-    .section-top {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      gap: 8px;
-      margin-bottom: 10px;
-    }
-    .section-meta {
-      font-size: 12px;
-      font-weight: 600;
-      color: var(--muted);
-      margin-bottom: 2px;
-    }
-    .section-title {
-      font-size: 16px;
-      font-weight: 800;
-      color: #0f172a;
-      letter-spacing: -0.3px;
-    }
-    .section-price-tag {
-      display: inline-block;
-      margin-top: 4px;
-      font-size: 13px;
-      font-weight: 700;
-      color: var(--selected);
-      background: var(--selected-bg);
-      padding: 2px 8px;
-      border-radius: 5px;
-    }
-    .section-actions {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .remain-badge {
-      font-size: 12px;
-      font-weight: 700;
-      padding: 3px 10px;
-      border-radius: 20px;
-      background: var(--success-bg);
-      color: var(--success);
-      white-space: nowrap;
-    }
-    .remain-badge.soldout {
-      background: #f1f5f9;
-      color: #64748b;
-    }
-
-    /* 좌석 버튼 그리드 (좌석명 + 가격 표시) */
-    .seat-grid {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-    }
-    .seat-btn {
-      padding: 7px 12px;
-      border-radius: 7px;
-      font-size: 13px;
-      font-weight: 700;
-      border: 1.5px solid #cbd5e1;
-      background: #fff;
-      color: var(--text);
-      cursor: pointer;
-      transition: all 0.12s;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      line-height: 1.25;
-    }
-    .seat-btn small {
-      font-size: 11px;
-      font-weight: 600;
-      color: var(--muted);
-    }
-    .seat-btn:hover:not(:disabled) {
-      border-color: var(--selected);
-      color: var(--selected);
-    }
-    .seat-btn.selected {
-      background: var(--selected);
-      border-color: var(--selected);
-      color: #fff;
-      box-shadow: 0 2px 6px rgba(37, 99, 235, 0.35);
-    }
-    .seat-btn.selected small {
-      color: #dbeafe;
-    }
-    .seat-btn:disabled {
-      border-color: #e2e8f0;
-      background: #f1f5f9;
-      color: #94a3b8;
-      cursor: not-allowed;
-      text-decoration: line-through;
-    }
-    .seat-btn:disabled small {
-      color: #94a3b8;
-    }
-
     /* 내 티켓 카드 */
     .ticket-card {
       background: #f8fafc;
@@ -551,11 +589,11 @@
   <main class="container">
     <!-- 좌측 메인 영역 -->
     <div>
-      <!-- 1. 실시간 선착순 다중 좌석 예매 -->
+      <!-- 1. 야구장 좌석 배치도 기반 다중 좌석 예매 -->
       <section class="card">
         <div class="card-header">
-          <h2><span class="step-num">1</span> 실시간 선착순 좌석 예매</h2>
-          <span style="font-size: 12px; color: var(--muted);">좌석 클릭 시 선택 및 총 결제 금액 자동 계산</span>
+          <h2><span class="step-num">1</span> 야구장 좌석 선택 및 실시간 예매</h2>
+          <span style="font-size: 12px; color: var(--muted);">좌석 배치도에서 원하는 자리를 클릭하세요</span>
         </div>
 
         <div class="user-bar">
@@ -575,7 +613,7 @@
             <button type="button" onclick="clearSelectedSeats()" style="background:none; border:none; color:#64748b; font-size:12px; cursor:pointer; font-weight:600;">선택 초기화</button>
           </div>
           <div class="selected-tags" id="selectedTags">
-            <span style="font-size:12px; color:#64748b;">위 좌석 목록에서 예매할 자리를 클릭해 선택하세요.</span>
+            <span style="font-size:12px; color:#64748b;">위 좌석 배치도에서 예매할 자리를 클릭해 선택하세요.</span>
           </div>
           <div class="total-price-box">
             <span class="total-price-label">총 결제 예정 금액</span>
@@ -587,10 +625,10 @@
         </div>
       </section>
 
-      <!-- 2. 전국 야구장 프리셋 기반 경기/구역 오픈 -->
+      <!-- 2. 전국 야구장 프리셋 기반 경기/구역 추가 오픈 -->
       <section class="card">
         <div class="card-header">
-          <h2><span class="step-num">2</span> 경기 및 좌석 구역 등록 (야구장 프리셋 자동 불러오기)</h2>
+          <h2><span class="step-num">2</span> 경기 및 좌석 구역 추가 오픈 (야구장 프리셋 + S3 시야 사진)</h2>
         </div>
 
         <div class="form-grid">
@@ -615,7 +653,7 @@
         </div>
 
         <div class="input-group">
-          <label>추천 구역 프리셋 (클릭 시 구역명, 좌석, 1매 가격이 자동 입력됩니다)</label>
+          <label>추천 구역 프리셋 (클릭 시 구역명, 좌석 배치, 1매 가격이 자동 입력됩니다)</label>
           <div class="preset-chips" id="zonePresetChips"></div>
         </div>
 
@@ -659,24 +697,23 @@
   </main>
 
   <script>
-    // 전국 KBO 9개 야구장 프리셋 데이터 (1매 가격 포함)
     const STADIUM_PRESETS = {
       jamsil: {
         name: "잠실야구장",
         defaultMatch: "LG vs KT",
         zones: [
-          { label: "1루 네이비석 (306블록)", seats: "N1, N2, N3, N4, N5, N6", price: 15000 },
-          { label: "1루 블루석 (207블록)", seats: "A1, A2, A3, A4, B1, B2", price: 22000 },
-          { label: "1루 오렌지 응원석 (205블록)", seats: "C1, C2, C3, C4, C5, C6", price: 20000 },
-          { label: "중앙 테이블석 (111블록)", seats: "T1, T2, T3, T4", price: 52000 }
+          { label: "1루 네이비석 (306블록)", seats: "A1, A2, A3, A4, A5, A6, B1, B2, B3, B4, B5, B6", price: 15000 },
+          { label: "1루 블루석 (207블록)", seats: "A1, A2, A3, A4, A5, A6, B1, B2, B3, B4, B5, B6", price: 22000 },
+          { label: "1루 오렌지 응원석 (205블록)", seats: "C1, C2, C3, C4, C5, C6, D1, D2, D3, D4, D5, D6", price: 20000 },
+          { label: "중앙 테이블석 (111블록)", seats: "T1, T2, T3, T4, T5, T6", price: 52000 }
         ]
       },
       gocheok: {
         name: "고척스카이돔",
         defaultMatch: "키움 vs LG",
         zones: [
-          { label: "버건디석 (106구역)", seats: "A1, A2, A3, A4, B1, B2", price: 18000 },
-          { label: "다크버건디석 (109구역)", seats: "D1, D2, D3, D4", price: 25000 },
+          { label: "버건디석 (106구역)", seats: "A1, A2, A3, A4, A5, A6, B1, B2, B3, B4, B5, B6", price: 18000 },
+          { label: "다크버건디석 (109구역)", seats: "D1, D2, D3, D4, D5, D6", price: 25000 },
           { label: "R.d-club (로열다이아몬드)", seats: "R1, R2, R3, R4", price: 60000 }
         ]
       },
@@ -684,17 +721,17 @@
         name: "인천 SSG랜더스필드",
         defaultMatch: "SSG vs 두산",
         zones: [
-          { label: "으쓱이존 응원석", seats: "S1, S2, S3, S4, S5", price: 17000 },
+          { label: "으쓱이존 응원석", seats: "S1, S2, S3, S4, S5, S6, S7, S8", price: 17000 },
           { label: "프렌들리존 (1루)", seats: "F1, F2, F3, F4, F5, F6", price: 32000 },
-          { label: "이마트 바비큐존", seats: "BBQ1, BBQ2, BBQ3, BBQ4", price: 45000 }
+          { label: "이마트 바비큐존", seats: "B1, B2, B3, B4", price: 45000 }
         ]
       },
       suwon: {
         name: "수원 KT위즈파크",
         defaultMatch: "KT vs LG",
         zones: [
-          { label: "1루 응원지정석 (204구역)", seats: "W1, W2, W3, W4, W5, W6", price: 16000 },
-          { label: "하이파이브존", seats: "H1, H2, H3, H4", price: 28000 },
+          { label: "1루 응원지정석 (204구역)", seats: "W1, W2, W3, W4, W5, W6, W7, W8", price: 16000 },
+          { label: "하이파이브존", seats: "H1, H2, H3, H4, H5, H6", price: 28000 },
           { label: "지니존 테이블석", seats: "G1, G2, G3, G4", price: 48000 }
         ]
       },
@@ -702,8 +739,8 @@
         name: "대전 한화생명 볼파크",
         defaultMatch: "한화 vs KIA",
         zones: [
-          { label: "1루 내야지정석 A", seats: "E1, E2, E3, E4, E5, E6", price: 17000 },
-          { label: "중앙 탁자석", seats: "T1, T2, T3, T4", price: 46000 },
+          { label: "1루 내야지정석 A", seats: "E1, E2, E3, E4, E5, E6, E7, E8", price: 17000 },
+          { label: "중앙 탁자석", seats: "T1, T2, T3, T4, T5, T6", price: 46000 },
           { label: "인피니티풀/특화석", seats: "P1, P2, P3, P4", price: 55000 }
         ]
       },
@@ -711,42 +748,42 @@
         name: "대구 삼성라이온즈파크",
         defaultMatch: "삼성 vs 롯데",
         zones: [
-          { label: "블루존 응원석 (3루)", seats: "B1, B2, B3, B4, B5, B6", price: 17000 },
-          { label: "VIP 테이블석", seats: "V1, V2, V3, V4", price: 50000 },
-          { label: "스윗박스", seats: "SW1, SW2, SW3, SW4", price: 65000 }
+          { label: "블루존 응원석 (3루)", seats: "B1, B2, B3, B4, B5, B6, B7, B8", price: 17000 },
+          { label: "VIP 테이블석", seats: "V1, V2, V3, V4, V5, V6", price: 50000 },
+          { label: "스윗박스", seats: "S1, S2, S3, S4", price: 65000 }
         ]
       },
       gwangju: {
         name: "광주-기아 챔피언스필드",
         defaultMatch: "KIA vs 삼성",
         zones: [
-          { label: "K9석 (내야지정)", seats: "K1, K2, K3, K4, K5, K6", price: 16000 },
-          { label: "챔피언석 (중앙)", seats: "CH1, CH2, CH3, CH4", price: 45000 },
-          { label: "타이거즈 가족석", seats: "FM1, FM2, FM3, FM4", price: 38000 }
+          { label: "K9석 (내야지정)", seats: "K1, K2, K3, K4, K5, K6, K7, K8", price: 16000 },
+          { label: "챔피언석 (중앙)", seats: "C1, C2, C3, C4, C5, C6", price: 45000 },
+          { label: "타이거즈 가족석", seats: "F1, F2, F3, F4", price: 38000 }
         ]
       },
       sajik: {
         name: "부산 사직야구장",
         defaultMatch: "롯데 vs NC",
         zones: [
-          { label: "1루 내야상단 응원석", seats: "L1, L2, L3, L4, L5, L6", price: 16000 },
-          { label: "중앙탁자석", seats: "CT1, CT2, CT3, CT4", price: 44000 },
-          { label: "익사이팅존", seats: "EX1, EX2, EX3, EX4", price: 30000 }
+          { label: "1루 내야상단 응원석", seats: "L1, L2, L3, L4, L5, L6, L7, L8", price: 16000 },
+          { label: "중앙탁자석", seats: "C1, C2, C3, C4, C5, C6", price: 44000 },
+          { label: "익사이팅존", seats: "E1, E2, E3, E4", price: 30000 }
         ]
       },
       changwon: {
         name: "창원 NC파크",
         defaultMatch: "NC vs 한화",
         zones: [
-          { label: "1루 내야응원석 (106구역)", seats: "N1, N2, N3, N4, N5, N6", price: 16000 },
-          { label: "프리미엄 테이블석", seats: "PR1, PR2, PR3, PR4", price: 48000 },
-          { label: "다이노스 가족석", seats: "DN1, DN2, DN3, DN4", price: 36000 }
+          { label: "1루 내야응원석 (106구역)", seats: "N1, N2, N3, N4, N5, N6, N7, N8", price: 16000 },
+          { label: "프리미엄 테이블석", seats: "P1, P2, P3, P4, P5, P6", price: 48000 },
+          { label: "다이노스 가족석", seats: "D1, D2, D3, D4", price: 36000 }
         ]
       }
     };
 
     let currentZoneIndex = 0;
-    let selectedSeats = []; // [{ section_id, section_title, seat, price }, ...]
+    let selectedSeats = [];
     let alertTimer = null;
 
     function formatPrice(num) {
@@ -805,7 +842,18 @@
       document.getElementById("sectionPrice").value = zone.price;
     }
 
-    // 다중 좌석 선택 토글 (가격 포함)
+    // 좌석 목록을 열(A, B, C...) 기준으로 그룹화해 야구장 배치도 형태로 렌더링
+    function groupSeatsByRow(seats) {
+      const rows = {};
+      seats.forEach(seat => {
+        const match = seat.match(/^([A-Za-z가-힣]+)(.*)$/);
+        const rowKey = match ? match[1].toUpperCase() : "일반";
+        if (!rows[rowKey]) rows[rowKey] = [];
+        rows[rowKey].push(seat);
+      });
+      return rows;
+    }
+
     function toggleSeatSelection(sectionId, sectionTitle, seat, price) {
       const idx = selectedSeats.findIndex(item => item.section_id === sectionId && item.seat === seat);
       if (idx > -1) {
@@ -834,7 +882,7 @@
       totalEl.textContent = formatPrice(totalAmount);
 
       if (selectedSeats.length === 0) {
-        tagsEl.innerHTML = `<span style="font-size:12px; color:#64748b;">위 좌석 목록에서 예매할 자리를 클릭해 선택하세요.</span>`;
+        tagsEl.innerHTML = `<span style="font-size:12px; color:#64748b;">위 좌석 배치도에서 예매할 자리를 클릭해 선택하세요.</span>`;
         btnEl.disabled = true;
         btnEl.textContent = "선택한 좌석 일괄 예매하기";
         return;
@@ -860,7 +908,7 @@
         container.innerHTML = `
           <div class="empty-state">
             현재 오픈된 경기/좌석 구역이 없습니다.<br/>
-            아래 <strong>[2. 경기 및 좌석 구역 등록]</strong>에서 야구장 프리셋을 선택해 좌석을 오픈해보세요!
+            아래 <strong>[2. 경기 및 좌석 구역 추가 오픈]</strong>에서 야구장 프리셋을 선택해 좌석을 오픈해보세요!
           </div>`;
         return;
       }
@@ -870,17 +918,19 @@
         const bookedCount = sec.seats.filter(s => sec.seats_status[s]).length;
         const remainCount = totalSeats - bookedCount;
         const seatPrice = Number(sec.price || 15000);
+        const groupedRows = groupSeatsByRow(sec.seats);
+        const safeTitle = sec.title.replace(/'/g, "\\'");
 
         selectedSeats = selectedSeats.filter(sel => !(sel.section_id === sec.id && sec.seats_status[sel.seat]));
 
         return `
           <div class="section-item">
-            <div class="section-thumb">
-              <img src="${sec.image_url}" alt="${sec.title}" />
-              <a class="s3-tag" href="${sec.image_url}" target="_blank">S3 시야 원본 ↗</a>
-            </div>
-            <div class="section-body">
-              <div class="section-top">
+            <div class="section-header-row">
+              <div class="section-thumb">
+                <img src="${sec.image_url}" alt="${sec.title}" />
+                <a class="s3-tag" href="${sec.image_url}" target="_blank">시야 사진 보기 ↗</a>
+              </div>
+              <div class="section-info-col">
                 <div>
                   ${sec.stadium ? `<div class="section-meta">📍 ${sec.stadium} ${sec.game_date ? `· 📅 ${sec.game_date}` : ''}</div>` : ''}
                   <div class="section-title">${sec.title}</div>
@@ -890,27 +940,33 @@
                   <span class="remain-badge ${remainCount === 0 ? 'soldout' : ''}">
                     ${remainCount === 0 ? '전석 매진' : `잔여 ${remainCount} / ${totalSeats}석`}
                   </span>
-                  <button class="btn btn-ghost" onclick="deleteSection('${sec.id}')" title="구역 및 S3 이미지 삭제">삭제</button>
+                  <button class="btn btn-ghost" onclick="deleteSection('${sec.id}')" title="구역 삭제">삭제</button>
                 </div>
               </div>
-              <div class="seat-grid">
-                ${sec.seats.map(seat => {
-                  const booked = sec.seats_status[seat];
-                  if (booked) {
-                    return `
-                      <button class="seat-btn" disabled title="예매자: ${booked.fan_name}">
-                        <span>${seat}석 (매진)</span>
-                        <small>${formatPrice(seatPrice)}</small>
-                      </button>`;
-                  }
-                  const isSelected = selectedSeats.some(sel => sel.section_id === sec.id && sel.seat === seat);
-                  const safeTitle = sec.title.replace(/'/g, "\\'");
-                  return `
-                    <button class="seat-btn ${isSelected ? 'selected' : ''}" onclick="toggleSeatSelection('${sec.id}', '${safeTitle}', '${seat}', ${seatPrice})">
-                      <span>${seat}석 ${isSelected ? '✓' : ''}</span>
-                      <small>${formatPrice(seatPrice)}</small>
-                    </button>`;
-                }).join("")}
+            </div>
+
+            <!-- 야구장 실제 좌석 배치도 -->
+            <div class="stadium-map-box">
+              <div class="field-banner">▲ GROUND / 그라운드(홈플레이트) 방향 ▲</div>
+              <div class="seat-legend">
+                <span class="legend-item"><i class="legend-box legend-avail"></i> 선택 가능</span>
+                <span class="legend-item"><i class="legend-box legend-sel"></i> 내 선택</span>
+                <span class="legend-item"><i class="legend-box legend-sold"></i> 매진</span>
+              </div>
+              <div class="seat-rows">
+                ${Object.entries(groupedRows).map(([rowName, rowSeats]) => `
+                  <div class="seat-row">
+                    <span class="row-label">${rowName}열</span>
+                    ${rowSeats.map(seat => {
+                      const booked = sec.seats_status[seat];
+                      if (booked) {
+                        return `<button class="seat-tile" disabled title="매진 (${booked.fan_name})">${seat}</button>`;
+                      }
+                      const isSelected = selectedSeats.some(sel => sel.section_id === sec.id && sel.seat === seat);
+                      return `<button class="seat-tile ${isSelected ? 'selected' : ''}" onclick="toggleSeatSelection('${sec.id}', '${safeTitle}', '${seat}', ${seatPrice})">${seat}</button>`;
+                    }).join("")}
+                  </div>
+                `).join("")}
               </div>
             </div>
           </div>
@@ -944,7 +1000,7 @@
     }
 
     async function deleteSection(sectionId) {
-      if (!confirm("이 경기 구역과 S3 시야 이미지를 삭제할까요?")) return;
+      if (!confirm("이 경기 구역을 삭제할까요?")) return;
       const res = await fetch(`/api/sections/${sectionId}`, { method: "DELETE" });
       const data = await res.json();
       if (!res.ok) return showAlert(data.error, true);
