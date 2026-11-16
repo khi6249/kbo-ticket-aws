@@ -42,6 +42,8 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
     }
     .brand {
       display: flex;
@@ -66,6 +68,7 @@
     .nav-links {
       display: flex;
       gap: 10px;
+      flex-wrap: wrap;
     }
     .nav-btn {
       background: rgba(255, 255, 255, 0.12);
@@ -81,7 +84,6 @@
     .nav-btn.primary { background: var(--accent); }
     .nav-btn.primary:hover { background: var(--accent-hover); }
 
-    /* 히어로 섹션 */
     .hero {
       background: linear-gradient(135deg, #09182e 0%, #163663 60%, #1e40af 100%);
       color: #fff;
@@ -113,7 +115,6 @@
       margin-bottom: 28px;
     }
 
-    /* 빠른 경기 검색 바 */
     .quick-search-box {
       background: #fff;
       border-radius: 14px;
@@ -160,7 +161,6 @@
     }
     .search-submit:hover { background: var(--accent-hover); }
 
-    /* 전국 9개 야구장 그리드 섹션 */
     .main-section {
       max-width: 1140px;
       margin: 36px auto 60px;
@@ -270,8 +270,9 @@
         <h1>⚾ 프로야구 공식 실시간 예매 포털</h1>
       </a>
       <div class="nav-links">
+        <a href="/booking.html" class="nav-btn primary">좌석 예매하기</a>
         <a href="/booking.html#lookup" class="nav-btn">내 티켓 조회 / 취소</a>
-        <a href="/booking.html" class="nav-btn primary">전체 예매 · 구역 오픈 →</a>
+        <a href="/admin.html" class="nav-btn">⚙️ 경기·좌석 오픈 (운영자)</a>
       </div>
     </div>
   </header>
@@ -311,9 +312,9 @@
     <div class="section-head">
       <div>
         <h3>🏟️ 전국 KBO 프로야구장 바로가기</h3>
-        <span>구장을 클릭하면 해당 야구장의 예매 및 좌석 오픈 화면으로 바로 이동합니다.</span>
+        <span>구장을 클릭하면 해당 야구장의 예매 화면으로 바로 이동합니다.</span>
       </div>
-      <a href="/booking.html#open-section" style="font-size:14px; font-weight:700; color:#2563eb; text-decoration:none;">+ 새 경기 및 좌석 구역 직접 오픈하기 ↗</a>
+      <a href="/admin.html" style="font-size:14px; font-weight:700; color:#2563eb; text-decoration:none;">⚙️ 운영자 페이지에서 새 경기/좌석 구역 오픈하기 ↗</a>
     </div>
 
     <div class="stadium-grid" id="stadiumCards"></div>
@@ -332,13 +333,12 @@
       { key: "changwon", name: "창원 NC파크", teams: "NC 다이노스", desc: "1루 내야응원석, 프리미엄 테이블석, 가족석 등" }
     ];
 
-    function goToBookingWithFilter(stadiumName = null, stadiumKey = null) {
+    function goToBookingWithFilter(stadiumName = null) {
       const dateVal = document.getElementById("mainDateInput").value;
       const selectedStadium = stadiumName || document.getElementById("mainStadiumSelect").value;
       const params = new URLSearchParams();
       if (dateVal) params.set("date", dateVal);
       if (selectedStadium && selectedStadium !== "ALL") params.set("stadium", selectedStadium);
-      if (stadiumKey) params.set("preset", stadiumKey);
       window.location.href = `/booking.html?${params.toString()}`;
     }
 
@@ -363,7 +363,7 @@
               <span class="open-count ${matchedCount === 0 ? 'none' : ''}">
                 ${matchedCount > 0 ? `● 현재 ${matchedCount}개 구역 오픈 중` : '예매 가능 구역 오픈 대기'}
               </span>
-              <button type="button" class="go-btn" onclick="goToBookingWithFilter('${st.name}', '${st.key}')">입장하기 →</button>
+              <button type="button" class="go-btn" onclick="goToBookingWithFilter('${st.name}')">예매하기 →</button>
             </div>
           </div>
         `;

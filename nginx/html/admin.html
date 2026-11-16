@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>KBO TICKET ADMIN | 경기 및 좌석 구역 오픈 관리</title>
+  <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+  <style>
+    :root {
+      --primary: #0f2544;
+      --accent: #d91e36;
+      --selected: #2563eb;
+      --selected-bg: #eff6ff;
+      --bg: #f1f5f9;
+      --card: #ffffff;
+      --text: #1e293b;
+      --muted: #64748b;
+      --border: #e2e8f0;
+      --success: #15803d;
+      --success-bg: #dcfce7;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body, input, select, button {
+      font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto, "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", sans-serif;
+    }
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    header {
+      background: linear-gradient(135deg, #09182e 0%, #1e293b 100%);
+      color: #fff;
+      padding: 18px 0;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+    .header-inner {
+      max-width: 1080px;
+      margin: 0 auto;
+      padding: 0 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      color: #fff;
+    }
+    .brand-badge {
+      background: #f59e0b;
+      color: #09182e;
+      font-size: 12px;
+      font-weight: 800;
+      padding: 4px 10px;
+      border-radius: 20px;
+    }
+    .brand h1 {
+      font-size: 20px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+    }
+    .nav-links {
+      display: flex;
+      gap: 10px;
+    }
+    .nav-link {
+      background: rgba(255, 255, 255, 0.15);
+      color: #fff;
+      text-decoration: none;
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .nav-link:hover { background: rgba(255, 255, 255, 0.25); }
+    .nav-link.accent { background: var(--accent); }
+
+    #alertBox {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 1000;
+      min-width: 340px;
+      max-width: 90%;
+      padding: 14px 22px;
+      border-radius: 10px;
+      font-weight: 700;
+      font-size: 14px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+      display: none;
+      text-align: center;
+    }
+    #alertBox.ok {
+      display: block;
+      background: #064e3b;
+      color: #ecfdf5;
+      border-left: 5px solid #10b981;
+    }
+    #alertBox.err {
+      display: block;
+      background: #7f1d1d;
+      color: #fef2f2;
+      border-left: 5px solid #ef4444;
+    }
+
+    .container {
+      max-width: 1080px;
+      margin: 28px auto 50px;
+      padding: 0 20px;
+    }
+
+    .card {
+      background: var(--card);
+      border-radius: 12px;
+      padding: 24px;
+      border: 1px solid var(--border);
+      box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+      margin-bottom: 24px;
+    }
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 18px;
+      padding-bottom: 12px;
+      border-bottom: 2px solid #f1f5f9;
+    }
+    .card-header h2 {
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--primary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .step-num {
+      background: var(--primary);
+      color: #fff;
+      width: 24px;
+      height: 24px;
+      border-radius: 6px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .form-grid-3 {
+      display: grid;
+      grid-template-columns: 1fr 1.2fr 1.2fr;
+      gap: 14px;
+      margin-bottom: 14px;
+    }
+    @media (max-width: 720px) {
+      .form-grid-3 { grid-template-columns: 1fr; }
+    }
+    .input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 14px;
+    }
+    .input-group label {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--muted);
+    }
+    input[type="text"], input[type="number"], input[type="date"], input[type="file"], select {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      font-size: 14px;
+      transition: border-color 0.2s;
+      background: #f8fafc;
+      color: var(--text);
+    }
+    input:focus, select:focus {
+      outline: none;
+      border-color: var(--primary);
+      background: #fff;
+    }
+
+    /* 한글/달력 표 만들기 스타일 드래그 좌석 그리드 선택기 */
+    .table-picker-wrapper {
+      background: #f8fafc;
+      border: 1.5px solid #cbd5e1;
+      border-radius: 10px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    .table-picker-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .table-picker-title {
+      font-size: 13px;
+      font-weight: 800;
+      color: var(--primary);
+    }
+    .table-picker-badge {
+      background: #dbeafe;
+      color: #1e40af;
+      font-size: 13px;
+      font-weight: 800;
+      padding: 4px 12px;
+      border-radius: 6px;
+    }
+    .grid-builder {
+      display: inline-grid;
+      grid-template-columns: 36px repeat(12, 38px);
+      gap: 5px;
+      user-select: none;
+      max-width: 100%;
+      overflow-x: auto;
+      padding-bottom: 4px;
+    }
+    .grid-axis {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .grid-cell {
+      width: 38px;
+      height: 32px;
+      background: #fff;
+      border: 1.5px solid #cbd5e1;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      color: #94a3b8;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: crosshair;
+      transition: background 0.08s, border-color 0.08s;
+    }
+    .grid-cell.active {
+      background: var(--selected);
+      border-color: #1d4ed8;
+      color: #fff;
+    }
+
+    .btn {
+      padding: 12px 18px;
+      border: none;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 800;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .btn-primary {
+      background: var(--primary);
+      color: #fff;
+      width: 100%;
+    }
+    .btn-primary:hover { background: #1e3a6e; }
+    .btn-danger {
+      background: #fee2e2;
+      color: #b91c1c;
+      padding: 7px 14px;
+      font-size: 13px;
+      border-radius: 7px;
+      border: none;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .btn-danger:hover { background: #fecaca; }
+
+    /* 등록된 구역 관리 리스트 */
+    .manage-item {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 16px;
+      margin-bottom: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+      background: #fff;
+    }
+    .manage-left {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .manage-thumb {
+      width: 90px;
+      height: 62px;
+      border-radius: 6px;
+      object-fit: cover;
+      background: #e2e8f0;
+    }
+    .manage-title {
+      font-size: 15px;
+      font-weight: 800;
+      color: #0f172a;
+    }
+    .manage-meta {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="header-inner">
+      <a href="/index.html" class="brand">
+        <span class="brand-badge">ADMIN CONSOLE</span>
+        <h1>⚙️ KBO 티켓 경기 및 좌석 구역 오픈 관리</h1>
+      </a>
+      <div class="nav-links">
+        <a href="/index.html" class="nav-link">← 메인 포털</a>
+        <a href="/booking.html" class="nav-link accent">팬 예매 화면 보기 →</a>
+      </div>
+    </div>
+  </header>
+
+  <div id="alertBox"></div>
+
+  <main class="container">
+    <!-- 1. 새 경기 및 좌석 구역 오픈 폼 -->
+    <section class="card">
+      <div class="card-header">
+        <h2><span class="step-num">1</span> 새 경기 및 좌석 구역 오픈 (AWS S3 시야 사진 업로드)</h2>
+      </div>
+
+      <div class="form-grid-3">
+        <div class="input-group">
+          <label>경기 날짜 선택</label>
+          <input type="date" id="gameDate" onchange="applyStadiumPreset()" />
+        </div>
+        <div class="input-group">
+          <label>전국 KBO 야구장 선택</label>
+          <select id="stadiumSelect" onchange="onStadiumChange()">
+            <option value="jamsil">서울 잠실야구장 (LG / 두산)</option>
+            <option value="gocheok">서울 고척스카이돔 (키움)</option>
+            <option value="munhak">인천 SSG랜더스필드 (SSG)</option>
+            <option value="suwon">수원 KT위즈파크 (KT)</option>
+            <option value="daejeon">대전 한화생명 볼파크 (한화)</option>
+            <option value="daegu">대구 삼성라이온즈파크 (삼성)</option>
+            <option value="gwangju">광주-기아 챔피언스필드 (KIA)</option>
+            <option value="sajik">부산 사직야구장 (롯데)</option>
+            <option value="changwon">창원 NC파크 (NC)</option>
+          </select>
+        </div>
+        <div class="input-group">
+          <label>추천 구역 프리셋 선택</label>
+          <select id="zonePresetSelect" onchange="applyStadiumPreset()"></select>
+        </div>
+      </div>
+
+      <!-- 한글/달력 표 만들기 스타일 드래그 좌석 생성기 -->
+      <div class="table-picker-wrapper">
+        <div class="table-picker-top">
+          <span class="table-picker-title">🖱️ 마우스 드래그(또는 클릭)로 오픈할 행×열 좌석 배치 크기 지정</span>
+          <span class="table-picker-badge" id="gridDimensionBadge">2행 × 6열 (총 12석)</span>
+        </div>
+        <div class="grid-builder" id="seatGridBuilder"></div>
+      </div>
+
+      <div class="form-grid-3">
+        <div class="input-group">
+          <label>경기 및 구역명</label>
+          <input type="text" id="sectionTitle" />
+        </div>
+        <div class="input-group">
+          <label>자동 생성된 좌석 번호 (수정 가능)</label>
+          <input type="text" id="sectionSeats" />
+        </div>
+        <div class="input-group">
+          <label>좌석 1매 가격 (원)</label>
+          <input type="number" id="sectionPrice" step="1000" min="0" />
+        </div>
+      </div>
+
+      <div class="input-group">
+        <label>좌석 시야 사진 파일 (AWS S3 버킷 저장)</label>
+        <input type="file" id="sectionImage" accept="image/*" />
+      </div>
+      <button class="btn btn-primary" onclick="createSection()">+ 지정한 좌석 배치로 판매 오픈하기</button>
+    </section>
+
+    <!-- 2. 현재 오픈된 경기/좌석 구역 목록 및 삭제 관리 -->
+    <section class="card">
+      <div class="card-header">
+        <h2><span class="step-num">2</span> 현재 오픈 중인 경기 / 좌석 구역 관리</h2>
+      </div>
+      <div id="manageSectionList">불러오는 중...</div>
+    </section>
+  </main>
+
+  <script>
+    const STADIUM_PRESETS = {
+      jamsil: {
+        name: "잠실야구장",
+        defaultMatch: "LG vs KT",
+        zones: [
+          { label: "1루 네이비석 (306블록)", rows: 2, cols: 6, price: 15000 },
+          { label: "1루 블루석 (207블록)", rows: 3, cols: 8, price: 22000 },
+          { label: "1루 오렌지 응원석 (205블록)", rows: 3, cols: 8, price: 20000 },
+          { label: "1루 레드석 (108블록)", rows: 2, cols: 8, price: 18000 },
+          { label: "중앙 테이블석 (111블록)", rows: 2, cols: 4, price: 52000 },
+          { label: "1루 익사이팅존", rows: 2, cols: 6, price: 30000 },
+          { label: "외야 그린석 (401블록)", rows: 3, cols: 10, price: 10000 }
+        ]
+      },
+      gocheok: {
+        name: "고척스카이돔",
+        defaultMatch: "키움 vs LG",
+        zones: [
+          { label: "버건디석 (106구역)", rows: 3, cols: 6, price: 18000 },
+          { label: "다크버건디석 (109구역)", rows: 2, cols: 6, price: 25000 },
+          { label: "3층 지정석 (304구역)", rows: 3, cols: 8, price: 15000 },
+          { label: "R.d-club (로열다이아몬드)", rows: 2, cols: 4, price: 60000 }
+        ]
+      },
+      munhak: {
+        name: "인천 SSG랜더스필드",
+        defaultMatch: "SSG vs 두산",
+        zones: [
+          { label: "으쓱이존 응원석 (1루)", rows: 3, cols: 8, price: 17000 },
+          { label: "프렌들리존 (1루 내야)", rows: 2, cols: 6, price: 32000 },
+          { label: "이마트 바비큐존", rows: 2, cols: 4, price: 45000 },
+          { label: "랜더스 라이브존", rows: 2, cols: 4, price: 55000 }
+        ]
+      },
+      suwon: {
+        name: "수원 KT위즈파크",
+        defaultMatch: "KT vs LG",
+        zones: [
+          { label: "1루 응원지정석 (204구역)", rows: 3, cols: 8, price: 16000 },
+          { label: "하이파이브존", rows: 2, cols: 6, price: 28000 },
+          { label: "지니존 테이블석", rows: 2, cols: 4, price: 48000 }
+        ]
+      },
+      daejeon: {
+        name: "대전 한화생명 볼파크",
+        defaultMatch: "한화 vs KIA",
+        zones: [
+          { label: "1루 내야지정석 A", rows: 3, cols: 8, price: 17000 },
+          { label: "중앙 탁자석", rows: 2, cols: 6, price: 46000 },
+          { label: "인피니티풀/특화석", rows: 2, cols: 4, price: 55000 }
+        ]
+      },
+      daegu: {
+        name: "대구 삼성라이온즈파크",
+        defaultMatch: "삼성 vs 롯데",
+        zones: [
+          { label: "블루존 응원석 (3루)", rows: 3, cols: 8, price: 17000 },
+          { label: "VIP 테이블석", rows: 2, cols: 6, price: 50000 },
+          { label: "스윗박스", rows: 2, cols: 4, price: 65000 }
+        ]
+      },
+      gwangju: {
+        name: "광주-기아 챔피언스필드",
+        defaultMatch: "KIA vs 삼성",
+        zones: [
+          { label: "K9석 (내야지정)", rows: 3, cols: 8, price: 16000 },
+          { label: "챔피언석 (중앙)", rows: 2, cols: 6, price: 45000 },
+          { label: "타이거즈 가족석", rows: 2, cols: 4, price: 38000 }
+        ]
+      },
+      sajik: {
+        name: "부산 사직야구장",
+        defaultMatch: "롯데 vs NC",
+        zones: [
+          { label: "1루 내야상단 응원석", rows: 3, cols: 8, price: 16000 },
+          { label: "중앙탁자석", rows: 2, cols: 6, price: 44000 },
+          { label: "익사이팅존", rows: 2, cols: 4, price: 30000 }
+        ]
+      },
+      changwon: {
+        name: "창원 NC파크",
+        defaultMatch: "NC vs 한화",
+        zones: [
+          { label: "1루 내야응원석 (106구역)", rows: 3, cols: 8, price: 16000 },
+          { label: "프리미엄 테이블석", rows: 2, cols: 6, price: 48000 },
+          { label: "다이노스 가족석", rows: 2, cols: 4, price: 36000 }
+        ]
+      }
+    };
+
+    const ROW_LETTERS = ["A", "B", "C", "D", "E", "F", "G", "H"];
+    const MAX_ROWS = 8;
+    const MAX_COLS = 12;
+
+    let selectedGridRows = 2;
+    let selectedGridCols = 6;
+    let isDraggingGrid = false;
+    let alertTimer = null;
+
+    function formatPrice(num) {
+      return Number(num || 0).toLocaleString("ko-KR") + "원";
+    }
+
+    function showAlert(text, isError = false) {
+      const box = document.getElementById("alertBox");
+      box.textContent = (isError ? "⚠️ " : "✅ ") + text;
+      box.className = isError ? "err" : "ok";
+      if (alertTimer) clearTimeout(alertTimer);
+      alertTimer = setTimeout(() => {
+        box.className = "";
+      }, 4000);
+    }
+
+    function buildSeatGridPicker() {
+      const builder = document.getElementById("seatGridBuilder");
+      let html = `<div class="grid-axis">행\\열</div>`;
+      for (let c = 1; c <= MAX_COLS; c++) {
+        html += `<div class="grid-axis">${c}</div>`;
+      }
+      for (let r = 1; r <= MAX_ROWS; r++) {
+        html += `<div class="grid-axis">${ROW_LETTERS[r - 1]}열</div>`;
+        for (let c = 1; c <= MAX_COLS; c++) {
+          const isActive = r <= selectedGridRows && c <= selectedGridCols;
+          html += `<div class="grid-cell ${isActive ? 'active' : ''}"
+                        data-r="${r}" data-c="${c}"
+                        onmousedown="startGridSelect(${r}, ${c})"
+                        onmouseenter="hoverGridSelect(${r}, ${c})"
+                        onclick="commitGridSelect(${r}, ${c})">${ROW_LETTERS[r - 1]}${c}</div>`;
+        }
+      }
+      builder.innerHTML = html;
+      document.addEventListener("mouseup", () => {
+        if (isDraggingGrid) isDraggingGrid = false;
+      });
+    }
+
+    function startGridSelect(r, c) {
+      isDraggingGrid = true;
+      commitGridSelect(r, c);
+    }
+
+    function hoverGridSelect(r, c) {
+      if (!isDraggingGrid) return;
+      commitGridSelect(r, c);
+    }
+
+    function commitGridSelect(rows, cols) {
+      selectedGridRows = rows;
+      selectedGridCols = cols;
+
+      document.querySelectorAll("#seatGridBuilder .grid-cell").forEach(cell => {
+        const cr = Number(cell.dataset.r);
+        const cc = Number(cell.dataset.c);
+        cell.classList.toggle("active", cr <= rows && cc <= cols);
+      });
+
+      const generatedSeats = [];
+      for (let r = 0; r < rows; r++) {
+        for (let c = 1; c <= cols; c++) {
+          generatedSeats.push(`${ROW_LETTERS[r]}${c}`);
+        }
+      }
+      document.getElementById("sectionSeats").value = generatedSeats.join(", ");
+      document.getElementById("gridDimensionBadge").textContent = `${rows}행 × ${cols}열 (총 ${generatedSeats.length}석)`;
+    }
+
+    function initAdminPage() {
+      const today = new Date().toISOString().split("T")[0];
+      document.getElementById("gameDate").value = today;
+      buildSeatGridPicker();
+      onStadiumChange();
+      loadManageSections();
+    }
+
+    function onStadiumChange() {
+      const stadiumKey = document.getElementById("stadiumSelect").value;
+      const stadium = STADIUM_PRESETS[stadiumKey];
+      const zoneSelect = document.getElementById("zonePresetSelect");
+
+      zoneSelect.innerHTML = stadium.zones.map((z, idx) => `
+        <option value="${idx}">${z.label} (${formatPrice(z.price)})</option>
+      `).join("");
+
+      applyStadiumPreset();
+    }
+
+    function applyStadiumPreset() {
+      const dateVal = document.getElementById("gameDate").value;
+      const stadiumKey = document.getElementById("stadiumSelect").value;
+      const zoneIdx = Number(document.getElementById("zonePresetSelect").value || 0);
+      const stadium = STADIUM_PRESETS[stadiumKey];
+      const zone = stadium.zones[zoneIdx] || stadium.zones[0];
+
+      const datePrefix = dateVal ? `[${dateVal}] ` : "";
+      document.getElementById("sectionTitle").value = `${datePrefix}${stadium.name} (${stadium.defaultMatch}) - ${zone.label}`;
+      document.getElementById("sectionPrice").value = zone.price;
+      commitGridSelect(zone.rows || 2, zone.cols || 6);
+    }
+
+    async function createSection() {
+      const stadiumKey = document.getElementById("stadiumSelect").value;
+      const stadiumName = STADIUM_PRESETS[stadiumKey].name;
+      const gameDate = document.getElementById("gameDate").value;
+
+      const formData = new FormData();
+      formData.append("title", document.getElementById("sectionTitle").value);
+      formData.append("game_date", gameDate);
+      formData.append("stadium", stadiumName);
+      formData.append("seats", document.getElementById("sectionSeats").value);
+      formData.append("price", document.getElementById("sectionPrice").value);
+      const fileInput = document.getElementById("sectionImage");
+      if (fileInput.files[0]) formData.append("image", fileInput.files[0]);
+
+      const res = await fetch("/api/sections", { method: "POST", body: formData });
+      const data = await res.json();
+      if (!res.ok) return showAlert(data.error, true);
+
+      showAlert(data.message);
+      fileInput.value = "";
+      loadManageSections();
+    }
+
+    async function loadManageSections() {
+      const res = await fetch("/api/sections");
+      const sections = await res.json();
+      const container = document.getElementById("manageSectionList");
+
+      if (!sections.length) {
+        container.innerHTML = `<p style="color:#64748b; font-size:14px;">현재 등록된 경기/좌석 구역이 없습니다.</p>`;
+        return;
+      }
+
+      container.innerHTML = sections.map(sec => {
+        const total = sec.seats.length;
+        const booked = sec.seats.filter(s => sec.seats_status[s]).length;
+        return `
+          <div class="manage-item">
+            <div class="manage-left">
+              <img class="manage-thumb" src="${sec.image_url}" alt="${sec.title}" />
+              <div>
+                <div class="manage-title">${sec.title}</div>
+                <div class="manage-meta">
+                  1매 ${formatPrice(sec.price)} · 총 ${total}석 (예매 ${booked}석 / 잔여 ${total - booked}석) ·
+                  <a href="${sec.image_url}" target="_blank" style="color:#2563eb; text-decoration:none; font-weight:600;">S3 시야 이미지 ↗</a>
+                </div>
+              </div>
+            </div>
+            <button type="button" class="btn-danger" onclick="deleteSection('${sec.id}')">구역 삭제</button>
+          </div>
+        `;
+      }).join("");
+    }
+
+    async function deleteSection(sectionId) {
+      if (!confirm("이 경기 구역과 S3 시야 이미지를 삭제할까요?")) return;
+      const res = await fetch(`/api/sections/${sectionId}`, { method: "DELETE" });
+      const data = await res.json();
+      if (!res.ok) return showAlert(data.error, true);
+
+      showAlert(data.message);
+      loadManageSections();
+    }
+
+    initAdminPage();
+  </script>
+</body>
+</html>
