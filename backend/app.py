@@ -1,7 +1,7 @@
 import os
 import json
 import uuid
-import secrets
+import re
 from datetime import date, datetime, timezone, timedelta
 import boto3
 import redis
@@ -20,6 +20,10 @@ r = redis.Redis(host=os.getenv("REDIS_HOST", "redis"), port=6379, decode_respons
 S3_BUCKET = os.getenv("S3_BUCKET_NAME", "kbo-ticket-2224024")
 AWS_REGION = os.getenv("AWS_REGION", "ap-southeast-2")
 s3 = boto3.client("s3", region_name=AWS_REGION)
+
+# 관리자 계정 설정 (환경변수 또는 기본값)
+ADMIN_ID = os.getenv("ADMIN_ID", "admin")
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "kbo2026!")
 
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "webp"}
 
@@ -46,6 +50,16 @@ def is_section_open(section_data):
         return True, None
     now_kst = datetime.now(KST)
     return now_kst >= open_dt, open_dt
+
+
+def verify_admin_token():
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        return False
+    token = auth_header.replace("Bearer ", "", 1).strip()
+    if not token:
+        return False
+    return r.exists(f"admin_session:{token}") == 1
 
 
 # 서버 시작 시 등록된 구역이 없으면 기본 KBO 경기 좌석 프리셋 자동 등록
@@ -109,7 +123,39 @@ def health_check():
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
-# 1. 경기/좌석 구역 조회, 등록, 삭제 (S3 연동)
+# 관리자 로그인 / 세션 검증 / 로그아웃
+@app.route("/api/admin/login", methods=["POST"])
+def admin_login():
+    data = request.get_json() or {}
+    username = data.get("username", "").strip()
+    password = data.get("password", "").strip()
+
+    if username != ADMIN_ID or password != ADMIN_PASSWORD:
+        return jsonify({"error": "관리자 아이디 또는 비밀번호가 일치하지 않습니다."}), 401
+
+    token = uuid.uuid4().hex
+    r.setex(f"admin_session:{token}", 7200, username)  # 2시간 유효 세션
+    return jsonify({"message": "관리자 로그인 성공", "token": token, "admin_id": username}), 200
+
+
+@app.route("/api/admin/verify", methods=["GET"])
+def admin_verify():
+    if not verify_admin_token():
+        return jsonify({"authenticated": False}), 401
+    return jsonify({"authenticated": True}), 200
+
+
+@app.route("/api/admin/logout", methods=["POST"])
+def admin_logout():
+    auth_header = request.headers.get("Authorization", "")
+    if auth_header.startswith("Bearer "):
+        token = auth_header.replace("Bearer ", "", 1).strip()
+        if token:
+            r.delete(f"admin_session:{token}")
+    return jsonify({"message": "로그아웃되었습니다."}), 200
+
+
+# 1. 경기/좌석 구역 조회 (공개), 등록·삭제 (관리자 인증 필수)
 @app.route("/api/sections", methods=["GET"])
 def get_sections():
     section_keys = sorted(r.keys("section:*"))
@@ -137,6 +183,9 @@ def get_sections():
 
 @app.route("/api/sections", methods=["POST"])
 def create_section():
+    if not verify_admin_token():
+        return jsonify({"error": "관리자 로그인이 필요합니다."}), 401
+
     title = request.form.get("title", "").strip()
     game_date = request.form.get("game_date", "").strip()
     stadium = request.form.get("stadium", "").strip()
@@ -199,6 +248,9 @@ def create_section():
 
 @app.route("/api/sections/<section_id>", methods=["DELETE"])
 def delete_section(section_id):
+    if not verify_admin_token():
+        return jsonify({"error": "관리자 로그인이 필요합니다."}), 401
+
     section_raw = r.get(f"section:{section_id}")
     if not section_raw:
         return jsonify({"error": "존재하지 않는 경기/구역입니다."}), 404
@@ -217,7 +269,7 @@ def delete_section(section_id):
     return jsonify({"message": "경기 구역이 삭제되었습니다."}), 200
 
 
-# 2-A. 단건 선착순 좌석 예매
+# 2-A. 단건 선착순 좌석 예매 (사용자 지정 4자리 예매 비밀번호)
 @app.route("/api/reserve", methods=["POST"])
 def reserve_seat():
     data = request.get_json() or {}
@@ -225,11 +277,14 @@ def reserve_seat():
     seat = data.get("seat", "").strip()
     fan_id = data.get("fan_id", "").strip()
     fan_name = data.get("fan_name", "").strip()
+    pin_code = data.get("pin_code", "").strip()
 
-    if not all([section_id, seat, fan_id, fan_name]):
-        return jsonify({"error": "팬 ID(연락처), 이름, 구역, 좌석을 모두 입력하세요."}), 400
+    if not all([section_id, seat, fan_id, fan_name, pin_code]):
+        return jsonify({"error": "연락처, 이름, 예매 비밀번호(4자리), 좌석을 모두 입력하세요."}), 400
     if len(fan_id) > 30 or len(fan_name) > 20:
-        return jsonify({"error": "팬 ID는 30자, 이름은 20자 이하로 입력하세요."}), 400
+        return jsonify({"error": "연락처는 30자, 이름은 20자 이하로 입력하세요."}), 400
+    if not re.fullmatch(r"\d{4}", pin_code):
+        return jsonify({"error": "예매 비밀번호는 숫자 4자리로 설정해야 합니다."}), 400
 
     section_raw = r.get(f"section:{section_id}")
     if not section_raw:
@@ -245,7 +300,6 @@ def reserve_seat():
 
     price = section_data.get("price", 0)
     booking_code = f"KBO-{uuid.uuid4().hex[:6].upper()}"
-    pin_code = f"{secrets.randbelow(9000) + 1000}"
     pin_hash = generate_password_hash(pin_code)
 
     lock_key = f"ticket:{section_id}:{seat}"
@@ -264,30 +318,31 @@ def reserve_seat():
         return jsonify({"error": "이미 선착순 매진된 좌석입니다."}), 409
 
     return jsonify({
-        "message": f"[{section_data['title']} / {seat}석] 예매 확정!",
+        "message": f"[{section_data['title']} / {seat}석] 예매 확정! (결제금액: {price:,}원)",
         "booking_code": booking_code,
-        "pin_code": pin_code,
         "total_amount": price,
     }), 201
 
 
-# 2-B. 다중 좌석 일괄 선착순 예매
+# 2-B. 다중 좌석 일괄 선착순 예매 (사용자 지정 4자리 예매 비밀번호)
 @app.route("/api/reserve-batch", methods=["POST"])
 def reserve_batch():
     data = request.get_json() or {}
     items = data.get("items", [])
     fan_id = data.get("fan_id", "").strip()
     fan_name = data.get("fan_name", "").strip()
+    pin_code = data.get("pin_code", "").strip()
 
-    if not fan_id or not fan_name:
-        return jsonify({"error": "예매자 팬 ID(연락처)와 이름을 먼저 입력하세요."}), 400
+    if not fan_id or not fan_name or not pin_code:
+        return jsonify({"error": "연락처, 예매자 이름, 설정할 예매 비밀번호(4자리)를 모두 입력하세요."}), 400
     if len(fan_id) > 30 or len(fan_name) > 20:
-        return jsonify({"error": "팬 ID는 30자, 이름은 20자 이하로 입력하세요."}), 400
+        return jsonify({"error": "연락처는 30자, 이름은 20자 이하로 입력하세요."}), 400
+    if not re.fullmatch(r"\d{4}", pin_code):
+        return jsonify({"error": "예매 비밀번호는 숫자 4자리로 설정해야 합니다. (예: 1234)"}), 400
     if not items or not isinstance(items, list):
         return jsonify({"error": "예매할 좌석을 1개 이상 선택하세요."}), 400
 
     booking_code = f"KBO-{uuid.uuid4().hex[:6].upper()}"
-    pin_code = f"{secrets.randbelow(9000) + 1000}"
     pin_hash = generate_password_hash(pin_code)
 
     succeeded = []
@@ -341,21 +396,20 @@ def reserve_batch():
     return jsonify({
         "message": msg,
         "booking_code": booking_code,
-        "pin_code": pin_code,
         "succeeded": succeeded,
         "failed": failed,
         "total_amount": total_amount,
     }), 201
 
 
-# 3. 내 티켓 조회 및 예매 취소
+# 3. 내 티켓 조회 및 예매 취소 (연락처 + 사용자가 설정한 4자리 비밀번호 검증)
 @app.route("/api/my-tickets", methods=["GET"])
 def get_my_tickets():
     fan_id = request.args.get("fan_id", "").strip()
     pin_code = request.args.get("pin_code", "").strip()
 
     if not fan_id or not pin_code:
-        return jsonify({"error": "연락처(팬 ID)와 발급받은 4자리 예매 비밀번호를 모두 입력하세요."}), 400
+        return jsonify({"error": "연락처와 예매 시 설정한 4자리 비밀번호를 모두 입력하세요."}), 400
 
     fan_tickets = []
     for key in r.keys("ticket:*"):
@@ -380,7 +434,7 @@ def get_my_tickets():
             })
 
     if not verified_tickets:
-        return jsonify({"error": "예매 비밀번호(4자리)가 일치하지 않습니다. 발급받은 번호를 확인하세요."}), 401
+        return jsonify({"error": "예매 비밀번호(4자리)가 일치하지 않습니다."}), 401
 
     return jsonify(verified_tickets), 200
 

@@ -184,13 +184,13 @@
       font-weight: 700;
     }
 
-    .form-grid {
+    .form-grid-3 {
       display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
+      grid-template-columns: 1.2fr 1fr 1fr;
+      gap: 10px;
     }
     @media (max-width: 680px) {
-      .form-grid { grid-template-columns: 1fr; }
+      .form-grid-3 { grid-template-columns: 1fr; }
     }
     .input-group {
       display: flex;
@@ -274,42 +274,6 @@
       font-weight: 700;
       color: var(--primary);
       margin-bottom: 8px;
-    }
-
-    .issued-pin-box {
-      display: none;
-      background: #fefce8;
-      border: 2px solid #facc15;
-      border-radius: 10px;
-      padding: 16px;
-      margin-top: 14px;
-    }
-    .issued-pin-box.show { display: block; }
-    .issued-pin-title {
-      font-size: 14px;
-      font-weight: 800;
-      color: #854d0e;
-      margin-bottom: 6px;
-    }
-    .issued-pin-grid {
-      display: flex;
-      gap: 12px;
-      flex-wrap: wrap;
-      margin: 8px 0;
-    }
-    .pin-chip {
-      background: #fff;
-      border: 1px solid #fde047;
-      padding: 8px 14px;
-      border-radius: 8px;
-      font-size: 13px;
-      color: #713f12;
-    }
-    .pin-chip strong {
-      font-size: 17px;
-      color: var(--accent);
-      margin-left: 6px;
-      letter-spacing: 1px;
     }
 
     .section-item {
@@ -403,7 +367,6 @@
       border: 1px solid #fcd34d;
     }
 
-    /* 오픈 대기 안내 오버레이 배너 */
     .countdown-notice {
       background: #fffbeb;
       border: 1.5px solid #fcd34d;
@@ -675,14 +638,15 @@
       <section class="card">
         <div class="card-header">
           <h2><span class="step-num">1</span> 야구장 좌석 선택 및 실시간 예매</h2>
-          <span style="font-size: 12px; color: var(--muted);">예매 완료 시 4자리 예매 비밀번호 자동 발급</span>
+          <span style="font-size: 12px; color: var(--muted);">조회/취소용 4자리 비밀번호 직접 설정</span>
         </div>
 
         <div class="user-bar">
-          <div class="user-bar-title">👤 비회원 예매자 정보 입력</div>
-          <div class="form-grid">
-            <input type="text" id="fanId" placeholder="연락처 / 팬 ID (예: 01012345678)" />
+          <div class="user-bar-title">👤 비회원 예매자 정보 및 예매 비밀번호 설정</div>
+          <div class="form-grid-3">
+            <input type="text" id="fanId" placeholder="연락처 (예: 01012345678)" />
             <input type="text" id="fanName" placeholder="예매자 이름 (예: 김형일)" />
+            <input type="password" id="fanPin" maxlength="4" inputmode="numeric" placeholder="예매 비밀번호 (숫자 4자리)" />
           </div>
         </div>
 
@@ -704,15 +668,6 @@
             선택한 좌석 일괄 예매하기
           </button>
         </div>
-
-        <div class="issued-pin-box" id="issuedPinBox">
-          <div class="issued-pin-title">🔐 비회원 예매 인증 정보가 발급되었습니다! (조회 및 취소 시 필수)</div>
-          <div class="issued-pin-grid">
-            <div class="pin-chip">예매번호 <strong id="issuedBookingCode">-</strong></div>
-            <div class="pin-chip">예매 비밀번호(4자리) <strong id="issuedPinCode">-</strong></div>
-          </div>
-          <div style="font-size: 12px; color: #854d0e;">※ 우측 [내 티켓 조회 / 취소] 입력창에 비밀번호가 자동 입력되었습니다.</div>
-        </div>
       </section>
     </div>
 
@@ -723,12 +678,12 @@
           <h2><span class="step-num">2</span> 내 티켓 조회 / 취소</h2>
         </div>
         <div class="input-group">
-          <label>예매 시 입력한 연락처 (팬 ID)</label>
+          <label>예매 시 입력한 연락처</label>
           <input type="text" id="searchFanId" placeholder="예: 01012345678" />
         </div>
         <div class="input-group">
-          <label>발급받은 예매 비밀번호 (4자리)</label>
-          <input type="password" id="searchPinCode" maxlength="4" placeholder="숫자 4자리 입력" />
+          <label>예매 시 설정한 비밀번호 (숫자 4자리)</label>
+          <input type="password" id="searchPinCode" maxlength="4" inputmode="numeric" placeholder="숫자 4자리 입력" />
         </div>
         <button class="btn btn-accent" style="width: 100%;" onclick="searchTickets()">비밀번호 인증 후 내 티켓 조회</button>
         <div id="myTicketList" style="margin-top: 14px;"></div>
@@ -826,7 +781,6 @@
       btnEl.textContent = `총 ${selectedSeats.length}석 (${formatPrice(totalAmount)}) 일괄 예매하기`;
     }
 
-    // 오픈 대기 중인 구역의 실시간 1초 카운트다운 업데이트 및 오픈 정각 자동 새로고침
     function startCountdownLoop() {
       if (countdownInterval) clearInterval(countdownInterval);
       countdownInterval = setInterval(() => {
@@ -965,6 +919,7 @@
     async function reserveSelectedSeats() {
       const fanId = document.getElementById("fanId").value;
       const fanName = document.getElementById("fanName").value;
+      const pinCode = document.getElementById("fanPin").value;
 
       if (selectedSeats.length === 0) {
         return showAlert("예매할 좌석을 먼저 선택해주세요.", true);
@@ -976,6 +931,7 @@
         body: JSON.stringify({
           fan_id: fanId,
           fan_name: fanName,
+          pin_code: pinCode,
           items: selectedSeats.map(s => ({ section_id: s.section_id, seat: s.seat }))
         })
       });
@@ -986,17 +942,8 @@
       }
 
       showAlert(data.message);
-
-      document.getElementById("issuedBookingCode").textContent = data.booking_code;
-      document.getElementById("issuedPinCode").textContent = data.pin_code;
-      document.getElementById("issuedPinBox").classList.add("show");
-
-      document.getElementById("searchFanId").value = fanId;
-      document.getElementById("searchPinCode").value = data.pin_code;
-
       selectedSeats = [];
       loadSections();
-      searchTickets(true);
     }
 
     async function searchTickets(silent = false) {
